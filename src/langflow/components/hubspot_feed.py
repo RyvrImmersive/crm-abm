@@ -5,6 +5,8 @@ from hubspot import HubSpot
 from ..utils.cache import CacheManager
 import logging
 from pydantic import Field, ValidationError
+from datetime import datetime
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -94,18 +96,22 @@ class HubspotFeedNode(PythonNode):
                                 company.to_dict()
                             )
                         except Exception as e:
-                            error_context = handle_error(
-                                e,
-                                context={
-                                    'node_type': 'HubspotFeedNode',
-                                    'entity_type': self.entity_type,
-                                    'company_id': entity_data.get('id', 'unknown')
-                                }
-                            )
-                            raise IntegrationError(
-                                f"Failed to fetch company data from HubSpot: {str(e)}",
-                                context=error_context
-                            )
+                            # Log the error
+                            logger.error(f"Failed to fetch company data from HubSpot: {str(e)}")
+                            
+                            # Create error context
+                            error_context = {
+                                'node_type': 'HubspotFeedNode',
+                                'entity_type': self.entity_type,
+                                'company_id': entity_data.get('id', 'unknown'),
+                                'error_type': e.__class__.__name__,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            
+                            # Use fallback data
+                            logger.warning(f"Using fallback data for company {entity_data.get('id', 'unknown')}")
+                            entity_data['name'] = entity_data.get('name', 'Unknown Company')
+                            entity_data['industry'] = entity_data.get('industry', 'Unknown Industry')
                 elif self.entity_type == "contact":
                     required_keys = ['firstname', 'lastname']
                     if not all(key in entity_data for key in required_keys):
@@ -119,18 +125,22 @@ class HubspotFeedNode(PythonNode):
                                 contact.to_dict()
                             )
                         except Exception as e:
-                            error_context = handle_error(
-                                e,
-                                context={
-                                    'node_type': 'HubspotFeedNode',
-                                    'entity_type': self.entity_type,
-                                    'contact_id': entity_data.get('id', 'unknown')
-                                }
-                            )
-                            raise IntegrationError(
-                                f"Failed to fetch contact data from HubSpot: {str(e)}",
-                                context=error_context
-                            )
+                            # Log the error
+                            logger.error(f"Failed to fetch contact data from HubSpot: {str(e)}")
+                            
+                            # Create error context
+                            error_context = {
+                                'node_type': 'HubspotFeedNode',
+                                'entity_type': self.entity_type,
+                                'contact_id': entity_data.get('id', 'unknown'),
+                                'error_type': e.__class__.__name__,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            
+                            # Use fallback data
+                            logger.warning(f"Using fallback data for contact {entity_data.get('id', 'unknown')}")
+                            entity_data['firstname'] = entity_data.get('firstname', 'Unknown')
+                            entity_data['lastname'] = entity_data.get('lastname', 'Contact')
                 elif self.entity_type == "deal":
                     required_keys = ['dealname', 'amount']
                     if not all(key in entity_data for key in required_keys):
@@ -144,18 +154,22 @@ class HubspotFeedNode(PythonNode):
                                 deal.to_dict()
                             )
                         except Exception as e:
-                            error_context = handle_error(
-                                e,
-                                context={
-                                    'node_type': 'HubspotFeedNode',
-                                    'entity_type': self.entity_type,
-                                    'deal_id': entity_data.get('id', 'unknown')
-                                }
-                            )
-                            raise IntegrationError(
-                                f"Failed to fetch deal data from HubSpot: {str(e)}",
-                                context=error_context
-                            )
+                            # Log the error
+                            logger.error(f"Failed to fetch deal data from HubSpot: {str(e)}")
+                            
+                            # Create error context
+                            error_context = {
+                                'node_type': 'HubspotFeedNode',
+                                'entity_type': self.entity_type,
+                                'deal_id': entity_data.get('id', 'unknown'),
+                                'error_type': e.__class__.__name__,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            
+                            # Use fallback data
+                            logger.warning(f"Using fallback data for deal {entity_data.get('id', 'unknown')}")
+                            entity_data['dealname'] = entity_data.get('dealname', 'Unknown Deal')
+                            entity_data['amount'] = entity_data.get('amount', '0')
             
             # Check for cached prompt
             cached_prompt = self.cache_manager.get_cached_prompt(
@@ -178,47 +192,61 @@ class HubspotFeedNode(PythonNode):
             return prompt
             
         except KeyError as e:
-            error_context = handle_error(
-                e,
-                context={
-                    'node_type': 'HubspotFeedNode',
-                    'entity_type': self.entity_type,
-                    'missing_key': str(e)
-                }
-            )
-            raise ValidationError(
-                f"Missing required field: {str(e)}",
-                context=error_context
-            )
+            # Log the error
+            logger.error(f"Missing required field: {str(e)}")
+            
+            # Create error context
+            error_context = {
+                'node_type': 'HubspotFeedNode',
+                'entity_type': self.entity_type,
+                'missing_key': str(e),
+                'error_type': 'KeyError',
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Return a fallback prompt
+            return f"Error processing entity data: Missing required field {str(e)}. Available data: {json.dumps(entity_data)}"
+            
         except Exception as e:
-            error_context = handle_error(
-                e,
-                context={
-                    'node_type': 'HubspotFeedNode',
-                    'entity_type': self.entity_type
-                }
-            )
-            raise ProcessingError(
-                f"Failed to generate prompt: {str(e)}",
-                context=error_context
-            )
+            # Log the error
+            logger.error(f"Failed to generate prompt: {str(e)}")
+            
+            # Create error context
+            error_context = {
+                'node_type': 'HubspotFeedNode',
+                'entity_type': self.entity_type,
+                'error_type': e.__class__.__name__,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Return a fallback prompt
+            return f"Error processing entity: {entity_data.get('id', 'unknown')}. Error: {str(e)}"
+            
     
-    def run(self, entity: Dict[str, Any]) -> str:
+    def run(self, entity: Dict[str, Any]) -> Dict[str, Any]:
         """Generate prompt for the given entity"""
         try:
-            return self.generate_prompt(entity)
+            prompt = self.generate_prompt(entity)
+            return {"prompt": prompt}
         except Exception as e:
-            error_context = handle_error(
-                e,
-                context={
-                    'node_type': 'HubspotFeedNode',
-                    'entity_type': self.entity_type
-                }
-            )
-            raise ProcessingError(
-                f"Error generating prompt: {str(e)}",
-                context=error_context
-            )
+            # Log the error
+            logger.error(f"Error generating prompt: {str(e)}")
+            
+            # Create simple error context
+            error_context = {
+                'node_type': 'HubspotFeedNode',
+                'entity_type': self.entity_type,
+                'error_type': e.__class__.__name__,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Return error response
+            return {
+                "status": "error",
+                "message": f"Error generating prompt: {str(e)}",
+                "error_context": error_context,
+                "prompt": f"Error processing entity: {entity.get('id', 'unknown')}"
+            }
     
     def clear_cache(self) -> None:
         """Clear all caches for this node"""
