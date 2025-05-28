@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: abm-crm-api
+    env: docker
+    region: ohio  # Choose a region close to your users
+    plan: starter  # Choose an appropriate plan
+    branch: main
+    dockerfilePath: ./Dockerfile
+    numInstances: 1
+    healthCheckPath: /health
+    envVars:
+      - key: HUBSPOT_ACCESS_TOKEN
+        sync: false  # This means it's not synced from local environment
+      - key: ASTRA_DB_ID
+        sync: false
+      - key: ASTRA_DB_REGION
+        sync: false
+      - key: ASTRA_DB_TOKEN
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
