@@ -100,13 +100,18 @@ async def clear_cache(cache_type: Optional[str] = None):
         return {"status": "success", "cache_type": cache_type}
         
     except Exception as e:
-        error_context = handle_error(
-            e,
-            context={
-                'endpoint': '/cache/clear',
-                'cache_type': cache_type
-            }
-        )
+        # Log the error
+        logger.error(f"Cache clear error: {str(e)}")
+        
+        # Create simple error context
+        error_context = {
+            'endpoint': '/cache/clear',
+            'cache_type': cache_type,
+            'error_type': e.__class__.__name__,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Return error response
         raise HTTPException(
             status_code=500,
             detail={
@@ -131,12 +136,17 @@ async def get_flow_status():
         )
         
     except Exception as e:
-        error_context = handle_error(
-            e,
-            context={
-                'endpoint': '/flow/status'
-            }
-        )
+        # Log the error
+        logger.error(f"Flow status error: {str(e)}")
+        
+        # Create simple error context
+        error_context = {
+            'endpoint': '/flow/status',
+            'error_type': e.__class__.__name__,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Return error response
         raise HTTPException(
             status_code=500,
             detail={
