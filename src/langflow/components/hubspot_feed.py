@@ -27,13 +27,15 @@ class HubspotFeedNode(PythonNode):
             inputs=["entity"],
             outputs=["prompt"]
         )
+        # Initialize basic properties
         self.entity_type = entity_type
         self.access_token = access_token
         self.fallback_prompt = fallback_prompt
         self.cache_manager = CacheManager()
-        self.hubspot_client = HubSpot(api_key=access_token) if access_token else None
         
+        # Validate inputs
         if not access_token:
+            logger.error("HubSpot access token is required")
             raise ValidationError(
                 "HubSpot access token is required",
                 context={
@@ -43,6 +45,7 @@ class HubspotFeedNode(PythonNode):
             )
             
         if not entity_type or entity_type not in ['company', 'contact', 'deal']:
+            logger.error(f"Invalid entity type: {entity_type}")
             raise ValidationError(
                 "Invalid entity type",
                 context={
@@ -50,12 +53,14 @@ class HubspotFeedNode(PythonNode):
                     'entity_type': entity_type
                 }
             )
-            
-        self.entity_type = entity_type
-        self.access_token = access_token
-        self.fallback_prompt = fallback_prompt
-        self.hubspot = HubSpot(access_token=access_token)
-        self.cache_manager = CacheManager()
+        
+        # Initialize HubSpot client (only once)
+        try:
+            self.hubspot = HubSpot(access_token=access_token)
+            logger.info(f"HubspotFeedNode initialized for entity type: {entity_type}")
+        except Exception as e:
+            logger.error(f"Failed to initialize HubSpot client: {str(e)}")
+            raise
     
     def generate_prompt(self, entity_data: Dict[str, Any]) -> str:
         """Generate a prompt based on the entity type and data"""

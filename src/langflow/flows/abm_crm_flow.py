@@ -65,14 +65,24 @@ class ABMCRMFlow(Flow):
         Process incoming webhook data through the flow
         """
         try:
-            # Extract entity data
+            # Extract entity data and ensure it has a type
             entity_data = webhook_data
+            
+            # Make sure entity_data has a type field
+            if "type" not in entity_data:
+                # Default to company if no type is provided
+                entity_data["type"] = "company"
+                logger.info(f"No entity type provided, defaulting to 'company'")
             
             # Log incoming data
             logger.info(f"Processing webhook data: {entity_data}")
             
-            # Start with HubSpot feed node
+            # Update the HubspotFeedNode entity type to match the data
             hubspot_node = self.nodes["hubspot"]
+            hubspot_node.entity_type = entity_data["type"]
+            logger.info(f"Set HubspotFeedNode entity_type to: {hubspot_node.entity_type}")
+            
+            # Start with HubSpot feed node
             prompt_result = hubspot_node.run(entity=entity_data)
             
             # Process through scoring node
