@@ -3,6 +3,10 @@ from ..flow.base import Flow
 from ..components.hubspot_feed import HubspotFeedNode
 from ..agents.scoring import CRMScoreAgent
 from ..components.astra_db import AstraDBNode
+from ..utils.errors import handle_error
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ABMCRMFlow(Flow):
     """Flow for Account-Based Marketing CRM processing"""
@@ -64,6 +68,9 @@ class ABMCRMFlow(Flow):
             # Extract entity data
             entity_data = webhook_data
             
+            # Log incoming data
+            logger.info(f"Processing webhook data: {entity_data}")
+            
             # Start with HubSpot feed node
             hubspot_node = self.nodes["hubspot"]
             prompt_result = hubspot_node.run(entity=entity_data)
@@ -85,10 +92,24 @@ class ABMCRMFlow(Flow):
             }
             
         except Exception as e:
+            error_context = handle_error(
+                e,
+                context={
+                    'node_type': 'ABMCRMFlow',
+                    'node_id': 'process_webhook',
+                    'additional_info': {
+                        'webhook_data': str(webhook_data)[:100] + '...' if len(str(webhook_data)) > 100 else str(webhook_data)
+                    }
+                }
+            )
+            
+            logger.error(f"Error processing webhook: {str(e)}")
+            
             return {
                 "status": "error",
                 "message": str(e),
-                "entity_id": webhook_data.get("id")
+                "entity_id": webhook_data.get("id"),
+                "error_context": error_context
             }
     
     def update_entity_type(self, event_type: str):
