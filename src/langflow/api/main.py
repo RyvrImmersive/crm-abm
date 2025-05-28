@@ -41,7 +41,10 @@ class FlowStatus(BaseModel):
 async def handle_hubspot_webhook(payload: WebhookPayload):
     """Handle incoming HubSpot webhook events"""
     try:
-        # First, update entity type if provided
+        # Initialize entity_type with a default value
+        entity_type = "unknown"
+        
+        # Extract entity type if provided
         if payload.event_type:
             # Extract entity type from event type (e.g., "company.created" -> "company")
             if "." in payload.event_type:
@@ -66,6 +69,7 @@ async def handle_hubspot_webhook(payload: WebhookPayload):
         error_context = {
             'endpoint': '/hubspot-webhook',
             'event_type': payload.event_type,
+            'entity_type': entity_type,  # Include the entity_type variable
             'error_type': e.__class__.__name__,
             'timestamp': datetime.now().isoformat()
         }
