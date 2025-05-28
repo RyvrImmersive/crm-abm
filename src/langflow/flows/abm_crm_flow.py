@@ -3,8 +3,8 @@ from ..flow.base import Flow
 from ..components.hubspot_feed import HubspotFeedNode
 from ..agents.scoring import CRMScoreAgent
 from ..components.astra_db import AstraDBNode
-from ..utils.errors import handle_error
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -92,19 +92,21 @@ class ABMCRMFlow(Flow):
             }
             
         except Exception as e:
-            error_context = handle_error(
-                e,
-                context={
-                    'node_type': 'ABMCRMFlow',
-                    'node_id': 'process_webhook',
-                    'additional_info': {
-                        'webhook_data': str(webhook_data)[:100] + '...' if len(str(webhook_data)) > 100 else str(webhook_data)
-                    }
+            # Create a simple error context
+            error_context = {
+                'node_type': 'ABMCRMFlow',
+                'node_id': 'process_webhook',
+                'timestamp': datetime.now().isoformat(),
+                'error_type': e.__class__.__name__,
+                'additional_info': {
+                    'webhook_data': str(webhook_data)[:100] + '...' if len(str(webhook_data)) > 100 else str(webhook_data)
                 }
-            )
+            }
             
+            # Log the error
             logger.error(f"Error processing webhook: {str(e)}")
             
+            # Return error response
             return {
                 "status": "error",
                 "message": str(e),

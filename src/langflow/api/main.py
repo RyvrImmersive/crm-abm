@@ -1,11 +1,10 @@
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
+from datetime import datetime
 from src.langflow.flows.abm_crm_flow import ABMCRMFlow
-from src.langflow.utils.errors import handle_error
 from src.langflow.utils.cache import CacheManager
 import logging
-from datetime import datetime
 import os
 
 logger = logging.getLogger(__name__)
@@ -60,13 +59,18 @@ async def handle_hubspot_webhook(payload: WebhookPayload):
         return result
         
     except Exception as e:
-        error_context = handle_error(
-            e,
-            context={
-                'endpoint': '/hubspot-webhook',
-                'event_type': payload.event_type
-            }
-        )
+        # Log the error
+        logging.error(f"Webhook error: {str(e)}")
+        
+        # Create simple error context
+        error_context = {
+            'endpoint': '/hubspot-webhook',
+            'event_type': payload.event_type,
+            'error_type': e.__class__.__name__,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Return error response
         raise HTTPException(
             status_code=500,
             detail={
