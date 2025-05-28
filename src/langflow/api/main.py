@@ -42,12 +42,20 @@ class FlowStatus(BaseModel):
 async def handle_hubspot_webhook(payload: WebhookPayload):
     """Handle incoming HubSpot webhook events"""
     try:
+        # First, update entity type if provided
+        if payload.event_type:
+            # Extract entity type from event type (e.g., "company.created" -> "company")
+            if "." in payload.event_type:
+                entity_type = payload.event_type.split(".")[0]
+            else:
+                entity_type = payload.event_type
+                
+            # Make sure data has the correct type
+            if "type" not in payload.data:
+                payload.data["type"] = entity_type
+        
         # Process the webhook data through the flow
         result = flow.process_webhook(payload.data)
-        
-        # Update entity type if provided
-        if payload.event_type:
-            flow.update_entity_type(payload.event_type)
         
         return result
         
