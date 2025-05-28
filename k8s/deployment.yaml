@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: abm-crm-api
+  labels:
+    app: abm-crm-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: abm-crm-api
+  template:
+    metadata:
+      labels:
+        app: abm-crm-api
+    spec:
+      containers:
+      - name: abm-crm-api
+        image: your-docker-repo/abm-crm-api:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: HUBSPOT_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: abm-crm-secrets
+              key: hubspot_token
+        - name: ASTRA_DB_ID
+          valueFrom:
+            secretKeyRef:
+              name: abm-crm-secrets
+              key: astra_db_id
+        - name: ASTRA_DB_REGION
+          valueFrom:
+            secretKeyRef:
+              name: abm-crm-secrets
+              key: astra_region
+        - name: ASTRA_DB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: abm-crm-secrets
+              key: astra_token
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          failureThreshold: 3
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: abm-crm-api
+spec:
+  selector:
+    app: abm-crm-api
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: LoadBalancer
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: abm-crm-api
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  rules:
+  - host: abm-crm.your-domain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: abm-crm-api
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - abm-crm.your-domain.com
+    secretName: abm-crm-tls
