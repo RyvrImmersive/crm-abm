@@ -41,47 +41,47 @@ class FlowStatus(BaseModel):
 async def handle_hubspot_webhook(payload: WebhookPayload):
     """Handle incoming HubSpot webhook events"""
     try:
-        # Initialize entity_type with a default value
-        entity_type = "unknown"
+        # Create a copy of the data to avoid modifying the original
+        data = dict(payload.data)
         
-        # Extract entity type if provided
-        if payload.event_type:
-            # Extract entity type from event type (e.g., "company.created" -> "company")
-            if "." in payload.event_type:
-                entity_type = payload.event_type.split(".")[0]
-            else:
-                entity_type = payload.event_type
-                
-            # Make sure data has the correct type
-            if "type" not in payload.data:
-                payload.data["type"] = entity_type
+        # Extract entity type from event_type if provided
+        if payload.event_type and "." in payload.event_type:
+            entity_type = payload.event_type.split(".")[0]
+        elif payload.event_type:
+            entity_type = payload.event_type
+        else:
+            entity_type = "company"  # Default to company
+            
+        # Always set the type in the data
+        data["type"] = entity_type
+        
+        logger.info(f"Processing webhook with entity_type: {entity_type}")
         
         # Process the webhook data through the flow
-        result = flow.process_webhook(payload.data)
+        result = flow.process_webhook(data)
         
         return result
         
     except Exception as e:
         # Log the error
-        logging.error(f"Webhook error: {str(e)}")
+        logger.error(f"Webhook error: {str(e)}")
         
         # Create simple error context
         error_context = {
             'endpoint': '/hubspot-webhook',
             'event_type': payload.event_type,
-            'entity_type': entity_type,  # Include the entity_type variable
+            'entity_type': entity_type if 'entity_type' in locals() else "unknown",
             'error_type': e.__class__.__name__,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'payload_data': str(payload.data)[:100] + '...' if len(str(payload.data)) > 100 else str(payload.data)
         }
         
         # Return error response
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": str(e),
-                "context": error_context
-            }
-        )
+        return {
+            "status": "error",
+            "message": str(e),
+            "error_context": error_context
+        }
 
 @app.get("/cache/stats")
 async def get_cache_stats():
