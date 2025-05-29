@@ -6,6 +6,7 @@ from src.langflow.flows.abm_crm_flow import ABMCRMFlow
 from src.langflow.utils.cache import CacheManager
 from src.langflow.utils.scheduler import scheduler
 from src.langflow.components.hubspot_updater import HubspotUpdaterNode
+from src.langflow.api.clay_endpoints import router as clay_router
 import logging
 import os
 
@@ -16,6 +17,9 @@ app = FastAPI(
     description="API for ABM CRM system with HubSpot integration and scoring",
     version="1.0.0"
 )
+
+# Include the Clay router
+app.include_router(clay_router)
 
 # Initialize flow with environment variables
 flow = ABMCRMFlow(
@@ -249,6 +253,46 @@ async def root():
                 "path": "/hubspot/update-now",
                 "method": "POST",
                 "description": "Run HubSpot update immediately"
+            },
+            {
+                "path": "/clay/process-company",
+                "method": "POST",
+                "description": "Process a single company from Clay and update HubSpot"
+            },
+            {
+                "path": "/clay/process-companies",
+                "method": "POST",
+                "description": "Process multiple companies from Clay and update HubSpot"
+            },
+            {
+                "path": "/clay/webhook",
+                "method": "POST",
+                "description": "Handle webhooks from Clay"
+            },
+            {
+                "path": "/clay/company-news/{domain}",
+                "method": "GET",
+                "description": "Get recent news for a company from Clay"
+            },
+            {
+                "path": "/clay/company-jobs/{domain}",
+                "method": "GET",
+                "description": "Get recent job postings for a company from Clay"
+            },
+            {
+                "path": "/clay/company-funding/{domain}",
+                "method": "GET",
+                "description": "Get funding information for a company from Clay"
+            },
+            {
+                "path": "/clay/company-profile/{domain}",
+                "method": "GET",
+                "description": "Get company profile information from Clay"
+            },
+            {
+                "path": "/clay/sync-to-hubspot/{domain}",
+                "method": "POST",
+                "description": "Sync company data from Clay to HubSpot"
             }
         ]
     }
