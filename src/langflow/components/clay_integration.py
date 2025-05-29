@@ -212,6 +212,58 @@ class ClayIntegrationNode(PythonNode):
             # Return a list of common properties that are likely to exist
             return ["name", "domain", "industry", "description", "hubspot_score", "abm_score"]
     
+    def create_hubspot_property(self, name: str, label: str, description: str, type: str = "string", group_name: str = "clay_data") -> bool:
+        """Create a custom property in HubSpot if it doesn't exist"""
+        try:
+            from hubspot.crm.properties import PropertyCreate
+            
+            # Check if property already exists
+            existing_properties = self.get_hubspot_company_properties()
+            if name in existing_properties:
+                logger.info(f"Property '{name}' already exists in HubSpot")
+                return True
+            
+            # Create property group if it doesn't exist
+            try:
+                from hubspot.crm.properties import PropertyGroupCreate
+                groups = self.hubspot_client.crm.properties.groups_api.get_all(object_type="companies")
+                group_names = [group.name for group in groups.results]
+                
+                if group_name not in group_names:
+                    logger.info(f"Creating property group '{group_name}' in HubSpot")
+                    group = PropertyGroupCreate(
+                        name=group_name,
+                        label="Clay Data",
+                        display_order=1
+                    )
+                    self.hubspot_client.crm.properties.groups_api.create(object_type="companies", property_group_create=group)
+            except Exception as e:
+                logger.warning(f"Error creating property group: {str(e)}")
+                # Fall back to using the default group
+                group_name = "companyinformation"
+            
+            # Create the property
+            logger.info(f"Creating property '{name}' in HubSpot")
+            property_create = PropertyCreate(
+                name=name,
+                label=label,
+                description=description,
+                type=type,
+                field_type=type,
+                group_name=group_name
+            )
+            
+            self.hubspot_client.crm.properties.core_api.create(
+                object_type="companies",
+                property_create=property_create
+            )
+            
+            logger.info(f"Successfully created property '{name}' in HubSpot")
+            return True
+        except Exception as e:
+            logger.error(f"Error creating property '{name}' in HubSpot: {str(e)}")
+            return False
+    
     def update_hubspot_company(self, company_id: str, properties: Dict[str, Any]) -> bool:
         """Update a company in HubSpot with new properties"""
         try:
@@ -250,23 +302,74 @@ class ClayIntegrationNode(PythonNode):
             logger.error(f"Error updating company in HubSpot: {str(e)}")
             return False
     
+    def create_clay_properties(self) -> bool:
+        """Create all necessary HubSpot properties for Clay integration"""
+        try:
+            logger.info("Creating custom properties for Clay integration in HubSpot")
+            
+            # Define all properties needed for Clay integration
+            properties = [
+                # News properties
+                {"name": "has_recent_news", "label": "Has Recent News", "description": "Whether the company has recent news articles", "type": "boolean"},
+                {"name": "recent_news_title", "label": "Recent News Title", "description": "Title of the most recent news article"},
+                {"name": "recent_news_url", "label": "Recent News URL", "description": "URL of the most recent news article"},
+                {"name": "recent_news_date", "label": "Recent News Date", "description": "Date of the most recent news article"},
+                
+                # Jobs properties
+                {"name": "has_open_jobs", "label": "Has Open Jobs", "description": "Whether the company has open job postings", "type": "boolean"},
+                {"name": "job_count", "label": "Job Count", "description": "Number of open job postings", "type": "number"},
+                {"name": "recent_job_title", "label": "Recent Job Title", "description": "Title of the most recent job posting"},
+                {"name": "hiring", "label": "Is Hiring", "description": "Whether the company is currently hiring", "type": "boolean"},
+                
+                # Funding properties
+                {"name": "funding", "label": "Has Funding", "description": "Whether the company has received funding", "type": "boolean"},
+                {"name": "recent_funding_amount", "label": "Recent Funding Amount", "description": "Amount of the most recent funding round", "type": "number"},
+                {"name": "recent_funding_date", "label": "Recent Funding Date", "description": "Date of the most recent funding round"},
+                {"name": "recent_funding_round", "label": "Recent Funding Round", "description": "Type of the most recent funding round"},
+                {"name": "total_funding", "label": "Total Funding", "description": "Total amount of funding received", "type": "number"},
+                
+                # Metadata
+                {"name": "last_clay_update", "label": "Last Clay Update", "description": "Date and time of the last update from Clay"}
+            ]
+            
+            # Create each property
+            success_count = 0
+            for prop in properties:
+                if self.create_hubspot_property(
+                    name=prop["name"],
+                    label=prop["label"],
+                    description=prop["description"],
+                    type=prop.get("type", "string")
+                ):
+                    success_count += 1
+            
+            logger.info(f"Successfully created {success_count}/{len(properties)} properties in HubSpot")
+            return success_count == len(properties)
+        except Exception as e:
+            logger.error(f"Error creating Clay properties in HubSpot: {str(e)}")
+            return False
+    
     def process_company_data(self, domain: str) -> Dict[str, Any]:
         """Process company data from Clay and update HubSpot"""
         try:
-            # Get data from Clay
+            logger.info(f"Processing company data for {domain}")
+            
+            # Ensure all required properties exist in HubSpot
+            self.create_clay_properties()
+            
+            # Get company data from Clay
             news = self.get_company_news(domain)
             jobs = self.get_company_jobs(domain)
             funding = self.get_company_funding(domain)
             profile = self.get_company_profile(domain)
             
-            # Find the company in HubSpot
+            # Find company in HubSpot
             hubspot_company = self.find_hubspot_company(domain)
-            
             if not hubspot_company:
+                logger.warning(f"Company with domain {domain} not found in HubSpot")
                 return {
-                    "status": "error",
-                    "message": f"Company with domain {domain} not found in HubSpot",
-                    "timestamp": datetime.now().isoformat()
+                    "success": False,
+                    "message": f"Company with domain {domain} not found in HubSpot"
                 }
             
             # Prepare properties to update in HubSpot
@@ -329,33 +432,27 @@ class ClayIntegrationNode(PythonNode):
             
             if success:
                 return {
-                    "status": "success",
-                    "message": f"Updated company {hubspot_company['id']} with data from Clay",
+                    "success": True,
+                    "message": f"Successfully updated company {domain} in HubSpot",
                     "company_id": hubspot_company["id"],
-                    "domain": domain,
-                    "data_summary": {
+                    "data": {
                         "news_count": len(news),
                         "jobs_count": len(jobs),
-                        "funding_rounds": len(funding),
-                        "has_profile": bool(profile)
-                    },
-                    "timestamp": datetime.now().isoformat()
+                        "funding_count": len(funding),
+                        "profile": bool(profile)
+                    }
                 }
             else:
                 return {
-                    "status": "error",
-                    "message": f"Failed to update company {hubspot_company['id']} in HubSpot",
-                    "company_id": hubspot_company["id"],
-                    "domain": domain,
-                    "timestamp": datetime.now().isoformat()
+                    "success": False,
+                    "message": f"Failed to update company {domain} in HubSpot"
                 }
+                
         except Exception as e:
-            logger.error(f"Error processing company data: {str(e)}")
+            logger.error(f"Error processing company data for {domain}: {str(e)}")
             return {
-                "status": "error",
-                "message": f"Error processing company data: {str(e)}",
-                "domain": domain,
-                "timestamp": datetime.now().isoformat()
+                "success": False,
+                "message": f"Error processing company data: {str(e)}"
             }
     
     def run(self, company_domain: str) -> Dict[str, Any]:
