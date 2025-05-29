@@ -216,6 +216,7 @@ class ClayIntegrationNode(PythonNode):
         """Create a custom property in HubSpot if it doesn't exist"""
         try:
             from hubspot.crm.properties import PropertyCreate
+            import requests
             
             # Check if property already exists
             existing_properties = self.get_hubspot_company_properties()
@@ -237,6 +238,15 @@ class ClayIntegrationNode(PythonNode):
                         display_order=1
                     )
                     self.hubspot_client.crm.properties.groups_api.create(object_type="companies", property_group_create=group)
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 403:
+                    logger.warning(f"Permission denied when creating property group. Your HubSpot API key doesn't have the necessary permissions: {str(e)}")
+                    logger.warning("Falling back to using existing properties only. Please update your HubSpot API key with the necessary scopes.")
+                    return False
+                else:
+                    logger.warning(f"Error creating property group: {str(e)}")
+                    # Fall back to using the default group
+                    group_name = "companyinformation"
             except Exception as e:
                 logger.warning(f"Error creating property group: {str(e)}")
                 # Fall back to using the default group
@@ -253,13 +263,24 @@ class ClayIntegrationNode(PythonNode):
                 group_name=group_name
             )
             
-            self.hubspot_client.crm.properties.core_api.create(
-                object_type="companies",
-                property_create=property_create
-            )
-            
-            logger.info(f"Successfully created property '{name}' in HubSpot")
-            return True
+            try:
+                self.hubspot_client.crm.properties.core_api.create(
+                    object_type="companies",
+                    property_create=property_create
+                )
+                
+                logger.info(f"Successfully created property '{name}' in HubSpot")
+                return True
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 403:
+                    logger.warning(f"Permission denied when creating property '{name}'. Your HubSpot API key doesn't have the necessary permissions: {str(e)}")
+                    logger.warning("Falling back to using existing properties only. Please update your HubSpot API key with the necessary scopes.")
+                    # Log the required scopes from the error message if available
+                    if hasattr(e, 'response') and e.response.text:
+                        logger.warning(f"Error details: {e.response.text}")
+                    return False
+                else:
+                    raise
         except Exception as e:
             logger.error(f"Error creating property '{name}' in HubSpot: {str(e)}")
             return False
@@ -307,6 +328,10 @@ class ClayIntegrationNode(PythonNode):
         try:
             logger.info("Creating custom properties for Clay integration in HubSpot")
             
+            # Get existing properties first
+            existing_properties = self.get_hubspot_company_properties()
+            logger.info(f"Found {len(existing_properties)} existing properties in HubSpot")
+            
             # Define all properties needed for Clay integration
             properties = [
                 # News properties
@@ -332,9 +357,26 @@ class ClayIntegrationNode(PythonNode):
                 {"name": "last_clay_update", "label": "Last Clay Update", "description": "Date and time of the last update from Clay"}
             ]
             
-            # Create each property
-            success_count = 0
+            # Check which properties already exist
+            existing_clay_properties = []
+            missing_properties = []
             for prop in properties:
+                if prop["name"] in existing_properties:
+                    existing_clay_properties.append(prop["name"])
+                else:
+                    missing_properties.append(prop)
+            
+            logger.info(f"Found {len(existing_clay_properties)} existing Clay properties in HubSpot")
+            logger.info(f"Missing {len(missing_properties)} Clay properties in HubSpot")
+            
+            # If we have all properties, we're done
+            if not missing_properties:
+                logger.info("All required Clay properties already exist in HubSpot")
+                return True
+            
+            # Try to create missing properties
+            success_count = 0
+            for prop in missing_properties:
                 if self.create_hubspot_property(
                     name=prop["name"],
                     label=prop["label"],
@@ -343,11 +385,30 @@ class ClayIntegrationNode(PythonNode):
                 ):
                     success_count += 1
             
-            logger.info(f"Successfully created {success_count}/{len(properties)} properties in HubSpot")
-            return success_count == len(properties)
+            # If we couldn't create any properties (likely due to permissions)
+            if success_count == 0 and len(missing_properties) > 0:
+                logger.warning("Could not create any missing properties. This is likely due to insufficient permissions.")
+                logger.warning("The integration will continue to work with existing properties, but some features may be limited.")
+                logger.warning("To fix this, please update your HubSpot API key with the necessary scopes or manually create the properties in HubSpot.")
+                
+                # Log the missing properties for reference
+                missing_names = [prop["name"] for prop in missing_properties]
+                logger.warning(f"Missing properties: {', '.join(missing_names)}")
+                
+                # Return True if we have at least some existing properties to work with
+                return len(existing_clay_properties) > 0
+            
+            logger.info(f"Successfully created {success_count}/{len(missing_properties)} missing properties in HubSpot")
+            return success_count == len(missing_properties) or len(existing_clay_properties) > 0
         except Exception as e:
             logger.error(f"Error creating Clay properties in HubSpot: {str(e)}")
-            return False
+            # Return True if we have some existing properties to work with
+            try:
+                existing_properties = self.get_hubspot_company_properties()
+                clay_property_count = sum(1 for prop in ["has_recent_news", "has_open_jobs", "funding", "last_clay_update"] if prop in existing_properties)
+                return clay_property_count > 0
+            except:
+                return False
     
     def process_company_data(self, domain: str) -> Dict[str, Any]:
         """Process company data from Clay and update HubSpot"""
