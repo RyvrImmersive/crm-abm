@@ -99,7 +99,23 @@ class ABMCRMFlow(Flow):
                     # Persist to AstraDB node
                     try:
                         astra_node = self.nodes["astra"]
-                        persistence_result = astra_node.run(entity=webhook_data, scores=score_result["score"])
+                        # Log the score_result structure for debugging
+                        logger.info(f"Score result structure: {score_result}")
+                        
+                        # Check if score_result has the expected structure
+                        if not isinstance(score_result, dict):
+                            logger.error(f"Score result is not a dictionary: {type(score_result)}")
+                            return {
+                                "status": "partial_success",
+                                "message": "Webhook scored but persistence failed",
+                                "error_details": f"Score result is not a dictionary: {type(score_result)}",
+                                "entity_id": entity_id,
+                                "entity_type": entity_type,
+                                "scores": score_result
+                            }
+                        
+                        # Pass the entire score_result as scores
+                        persistence_result = astra_node.run(entity=webhook_data, scores=score_result)
                         logger.info(f"Successfully persisted to AstraDB: {persistence_result}")
                         
                         return {
@@ -107,18 +123,32 @@ class ABMCRMFlow(Flow):
                             "message": "Webhook processed with scoring and persisted to AstraDB",
                             "entity_id": entity_id,
                             "entity_type": entity_type,
-                            "scores": score_result.get("score", {}),
+                            "scores": score_result,
                             "persistence": persistence_result
                         }
                     except Exception as astra_error:
                         logger.error(f"Error in AstraDB persistence: {str(astra_error)}")
+                        
+                        # Create a safer error response
+                        try:
+                            error_details = str(astra_error)
+                        except:
+                            error_details = "Unknown error in AstraDB persistence"
+                            
+                        try:
+                            scores_data = score_result
+                            if not isinstance(scores_data, dict):
+                                scores_data = {"value": str(scores_data)}
+                        except:
+                            scores_data = {}
+                            
                         return {
                             "status": "partial_success",
                             "message": "Webhook scored but persistence failed",
-                            "error_details": str(astra_error),
+                            "error_details": error_details,
                             "entity_id": entity_id,
                             "entity_type": entity_type,
-                            "scores": score_result.get("score", {})
+                            "scores": scores_data
                         }
                     
                 except Exception as scoring_error:
