@@ -93,7 +93,41 @@ class ABMCRMFlow(Flow):
                 # Process through scoring node
                 try:
                     scoring_node = self.nodes["scoring"]
-                    score_result = scoring_node.run(entity=prompt_result["prompt"])
+                    
+                    # Check if the prompt is a string and convert it to a dictionary
+                    prompt_data = prompt_result["prompt"]
+                    logger.info(f"Prompt data type: {type(prompt_data)}")
+                    
+                    if isinstance(prompt_data, str):
+                        logger.info("Converting string prompt to dictionary")
+                        try:
+                            # Try to parse the prompt as JSON if it looks like JSON
+                            if prompt_data.strip().startswith('{') and prompt_data.strip().endswith('}'): 
+                                import json
+                                entity_dict = json.loads(prompt_data)
+                            else:
+                                # Otherwise create a simple dictionary with the prompt
+                                entity_dict = {
+                                    "id": entity_id,
+                                    "type": entity_type,
+                                    "data": prompt_data,
+                                    "properties": webhook_data.get("properties", {})
+                                }
+                        except Exception as json_error:
+                            logger.warning(f"Failed to parse prompt as JSON: {str(json_error)}")
+                            # Fallback to a simple dictionary
+                            entity_dict = {
+                                "id": entity_id,
+                                "type": entity_type,
+                                "data": prompt_data,
+                                "properties": webhook_data.get("properties", {})
+                            }
+                    else:
+                        # If it's already a dictionary, use it directly
+                        entity_dict = prompt_data
+                    
+                    logger.info(f"Passing entity to scoring node: {type(entity_dict)}")
+                    score_result = scoring_node.run(entity=entity_dict)
                     logger.info(f"Successfully scored entity: {score_result}")
                     
                     # Persist to AstraDB node
