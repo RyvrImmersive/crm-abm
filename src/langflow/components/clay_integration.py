@@ -254,13 +254,25 @@ class ClayIntegrationNode(PythonNode):
             
             # Create the property
             logger.info(f"Creating property '{name}' in HubSpot")
+            
+            # Map our simplified types to HubSpot's expected types
+            field_type = type
+            if type == "boolean":
+                field_type = "booleancheckbox"
+            
+            # For date fields, we need to set the correct format
+            field_type_options = None
+            if type == "date":
+                field_type_options = {"format": "YYYY-MM-DD"}
+            
             property_create = PropertyCreate(
                 name=name,
                 label=label,
                 description=description,
-                type=type,
-                field_type=type,
-                group_name=group_name
+                type=field_type,  # Use the mapped field type
+                field_type=field_type,
+                group_name=group_name,
+                field_type_options=field_type_options
             )
             
             try:
@@ -335,26 +347,26 @@ class ClayIntegrationNode(PythonNode):
             # Define all properties needed for Clay integration
             properties = [
                 # News properties
-                {"name": "has_recent_news", "label": "Has Recent News", "description": "Whether the company has recent news articles", "type": "boolean"},
-                {"name": "recent_news_title", "label": "Recent News Title", "description": "Title of the most recent news article"},
-                {"name": "recent_news_url", "label": "Recent News URL", "description": "URL of the most recent news article"},
-                {"name": "recent_news_date", "label": "Recent News Date", "description": "Date of the most recent news article"},
+                {"name": "has_recent_news", "label": "Has Recent News", "description": "Whether the company has recent news articles", "type": "booleancheckbox"},
+                {"name": "recent_news_title", "label": "Recent News Title", "description": "Title of the most recent news article", "type": "text"},
+                {"name": "recent_news_url", "label": "Recent News URL", "description": "URL of the most recent news article", "type": "text"},
+                {"name": "recent_news_date", "label": "Recent News Date", "description": "Date of the most recent news article", "type": "date"},
                 
                 # Jobs properties
-                {"name": "has_open_jobs", "label": "Has Open Jobs", "description": "Whether the company has open job postings", "type": "boolean"},
+                {"name": "has_open_jobs", "label": "Has Open Jobs", "description": "Whether the company has open job postings", "type": "booleancheckbox"},
                 {"name": "job_count", "label": "Job Count", "description": "Number of open job postings", "type": "number"},
-                {"name": "recent_job_title", "label": "Recent Job Title", "description": "Title of the most recent job posting"},
-                {"name": "hiring", "label": "Is Hiring", "description": "Whether the company is currently hiring", "type": "boolean"},
+                {"name": "recent_job_title", "label": "Recent Job Title", "description": "Title of the most recent job posting", "type": "text"},
+                {"name": "hiring", "label": "Is Hiring", "description": "Whether the company is currently hiring", "type": "booleancheckbox"},
                 
                 # Funding properties
-                {"name": "funding", "label": "Has Funding", "description": "Whether the company has received funding", "type": "boolean"},
+                {"name": "funding", "label": "Has Funding", "description": "Whether the company has received funding", "type": "booleancheckbox"},
                 {"name": "recent_funding_amount", "label": "Recent Funding Amount", "description": "Amount of the most recent funding round", "type": "number"},
-                {"name": "recent_funding_date", "label": "Recent Funding Date", "description": "Date of the most recent funding round"},
-                {"name": "recent_funding_round", "label": "Recent Funding Round", "description": "Type of the most recent funding round"},
+                {"name": "recent_funding_date", "label": "Recent Funding Date", "description": "Date of the most recent funding round", "type": "date"},
+                {"name": "recent_funding_round", "label": "Recent Funding Round", "description": "Type of the most recent funding round", "type": "text"},
                 {"name": "total_funding", "label": "Total Funding", "description": "Total amount of funding received", "type": "number"},
                 
                 # Metadata
-                {"name": "last_clay_update", "label": "Last Clay Update", "description": "Date and time of the last update from Clay"}
+                {"name": "last_clay_update", "label": "Last Clay Update", "description": "Date and time of the last update from Clay", "type": "text"}
             ]
             
             # Check which properties already exist
