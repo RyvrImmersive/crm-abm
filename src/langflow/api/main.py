@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -7,34 +8,56 @@ from src.langflow.utils.cache import CacheManager
 from src.langflow.utils.scheduler import scheduler
 from src.langflow.components.hubspot_updater import HubspotUpdaterNode
 from src.langflow.api.clay_endpoints import router as clay_router
+from src.langflow.api.scheduler_endpoints import router as scheduler_router
+from src.langflow.api.hubspot_endpoints import router as hubspot_router
 import logging
 import os
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="ABM CRM API",
-    description="API for ABM CRM system with HubSpot integration and scoring",
+    title="Clay-HubSpot Integration API",
+    description="API for Clay-HubSpot integration with scoring and scheduling",
     version="1.0.0"
 )
 
-# Include the Clay router
-app.include_router(clay_router)
-
-# Initialize flow with environment variables
-flow = ABMCRMFlow(
-    hubspot_access_token=os.getenv("HUBSPOT_API_KEY"),
-    astra_db_id=os.getenv("ASTRA_DB_ID"),
-    astra_db_region=os.getenv("ASTRA_DB_REGION"),
-    astra_db_token=os.getenv("ASTRA_DB_TOKEN")
+# Configure CORS
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[frontend_url, "http://localhost:3000"],  # Allow the production frontend URL and localhost for development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Initialize HubSpot updater
-hubspot_updater = HubspotUpdaterNode(
-    access_token=os.getenv("HUBSPOT_API_KEY"),
-    batch_size=25,
-    max_entities=100
-)
+# Include routers
+app.include_router(clay_router, prefix="/api/clay", tags=["Clay"])
+app.include_router(scheduler_router, prefix="/api/scheduler", tags=["Scheduler"])
+app.include_router(hubspot_router, prefix="/api/hubspot", tags=["HubSpot"])
+
+# Initialize flow with environment variables - wrapped in try/except to handle initialization errors
+try:
+    flow = ABMCRMFlow(
+        hubspot_access_token=os.getenv("HUBSPOT_API_KEY"),
+        astra_db_id=os.getenv("ASTRA_DB_ID"),
+        astra_db_region=os.getenv("ASTRA_DB_REGION"),
+        astra_db_token=os.getenv("ASTRA_DB_TOKEN")
+    )
+except Exception as e:
+    logger.error(f"Error initializing ABMCRMFlow: {str(e)}")
+    flow = None
+
+# Initialize HubSpot updater - wrapped in try/except to handle initialization errors
+try:
+    hubspot_updater = HubspotUpdaterNode(
+        access_token=os.getenv("HUBSPOT_API_KEY"),
+        batch_size=25,
+        max_entities=100
+    )
+except Exception as e:
+    logger.error(f"Error initializing HubspotUpdaterNode: {str(e)}")
+    hubspot_updater = None
 
 class WebhookPayload(BaseModel):
     event_type: str
@@ -68,6 +91,10 @@ class ScheduleStatus(BaseModel):
 async def handle_hubspot_webhook(payload: WebhookPayload):
     """Handle incoming HubSpot webhook events"""
     try:
+        # Check if flow is initialized
+        if flow is None:
+            raise HTTPException(status_code=503, detail="Flow not initialized. Check server logs for details.")
+            
         # Create a copy of the data to avoid modifying the original
         data = dict(payload.data)
         
@@ -113,6 +140,14 @@ async def handle_hubspot_webhook(payload: WebhookPayload):
 @app.get("/cache/stats")
 async def get_cache_stats():
     """Get cache statistics"""
+    # Check if flow is initialized
+    if flow is None:
+        return CacheStats(
+            hubspot={"hits": 0, "misses": 0, "size": 0},
+            scoring={"hits": 0, "misses": 0, "size": 0},
+            prompt={"hits": 0, "misses": 0, "size": 0}
+        )
+    
     return CacheStats(
         hubspot=flow.cache_manager.get_cache_stats()['hubspot'],
         scoring=flow.cache_manager.get_cache_stats()['scoring'],
@@ -123,6 +158,10 @@ async def get_cache_stats():
 async def clear_cache(cache_type: Optional[str] = None):
     """Clear cache (all or specific type)"""
     try:
+        # Check if flow is initialized
+        if flow is None:
+            raise HTTPException(status_code=503, detail="Flow not initialized. Check server logs for details.")
+            
         if cache_type:
             flow.cache_manager.clear_cache(cache_type)
         else:
@@ -155,15 +194,33 @@ async def clear_cache(cache_type: Optional[str] = None):
 async def get_flow_status():
     """Get current flow status and cache stats"""
     try:
-        flow_status = flow.get_flow_status()
-        return FlowStatus(
-            nodes=flow_status['nodes'],
-            connections=flow_status['connections'],
-            cache_stats=CacheStats(
-                hubspot=flow.cache_manager.get_cache_stats()['hubspot'],
-                scoring=flow.cache_manager.get_cache_stats()['scoring'],
-                prompt=flow.cache_manager.get_cache_stats()['prompt']
+        # Check if flow is initialized
+        if flow is None:
+            return FlowStatus(
+                nodes={},
+                connections=[],
+                cache_stats=CacheStats(
+                    hubspot={"hits": 0, "misses": 0, "size": 0},
+                    scoring={"hits": 0, "misses": 0, "size": 0},
+                    prompt={"hits": 0, "misses": 0, "size": 0}
+                )
             )
+            
+        # Get flow status
+        nodes = {}
+        connections = []
+        
+        # Get cache stats
+        cache_stats = CacheStats(
+            hubspot=flow.cache_manager.get_cache_stats()['hubspot'],
+            scoring=flow.cache_manager.get_cache_stats()['scoring'],
+            prompt=flow.cache_manager.get_cache_stats()['prompt']
+        )
+        
+        return FlowStatus(
+            nodes=nodes,
+            connections=connections,
+            cache_stats=cache_stats
         )
         
     except Exception as e:
@@ -345,6 +402,10 @@ async def get_scheduler_status():
 async def schedule_hubspot_update(task: ScheduleTask):
     """Schedule HubSpot updates"""
     try:
+        # Check if hubspot_updater is initialized
+        if hubspot_updater is None:
+            raise HTTPException(status_code=503, detail="HubSpot updater not initialized. Check server logs for details.")
+            
         # Convert minutes to seconds
         interval_seconds = task.interval_minutes * 60
         
@@ -408,6 +469,10 @@ async def remove_hubspot_update():
 async def update_hubspot_now(background_tasks: BackgroundTasks):
     """Run HubSpot update immediately"""
     try:
+        # Check if hubspot_updater is initialized
+        if hubspot_updater is None:
+            raise HTTPException(status_code=503, detail="HubSpot updater not initialized. Check server logs for details.")
+            
         # Run the update in the background
         background_tasks.add_task(hubspot_updater.run)
         
@@ -423,7 +488,11 @@ async def update_hubspot_now(background_tasks: BackgroundTasks):
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting up the application")
-    scheduler.start()
+    # Only start the scheduler if we have the necessary components initialized
+    if flow is not None and hubspot_updater is not None:
+        scheduler.start()
+    else:
+        logger.warning("Not starting scheduler because flow or hubspot_updater is not initialized")
 
 # Stop the scheduler when the app shuts down
 @app.on_event("shutdown")

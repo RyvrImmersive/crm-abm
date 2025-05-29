@@ -1,6 +1,7 @@
 services:
+  # Backend API Service
   - type: web
-    name: abm-crm-api
+    name: clay-hubspot-api
     env: docker
     region: ohio  # Choose a region close to your users
     plan: starter  # Choose an appropriate plan
@@ -9,7 +10,7 @@ services:
     numInstances: 1
     healthCheckPath: /health
     envVars:
-      - key: HUBSPOT_ACCESS_TOKEN
+      - key: HUBSPOT_API_KEY
         sync: false  # This means it's not synced from local environment
       - key: ASTRA_DB_ID
         sync: false
@@ -19,3 +20,22 @@ services:
         sync: false
       - key: LOG_LEVEL
         value: INFO
+      - key: CLAY_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://clay-hubspot-frontend.onrender.com
+
+  # Frontend Service
+  - type: web
+    name: clay-hubspot-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/build
+    branch: main
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://clay-hubspot-api.onrender.com/api
