@@ -18,6 +18,13 @@ clay_integration = ClayIntegrationNode(
     base_url=os.getenv("CLAY_API_BASE_URL", "https://api.clay.com/v1")
 )
 
+# Create HubSpot properties on startup
+try:
+    logger.info("Creating HubSpot properties for Clay integration on startup")
+    clay_integration.create_clay_properties()
+except Exception as e:
+    logger.error(f"Error creating HubSpot properties on startup: {str(e)}")
+
 router = APIRouter(
     prefix="/clay",
     tags=["clay"],
@@ -40,6 +47,10 @@ class ClayWebhookPayload(BaseModel):
 async def process_company(company: CompanyDomain, background_tasks: BackgroundTasks):
     """Process a single company from Clay and update HubSpot"""
     try:
+        # Ensure HubSpot properties exist
+        logger.info("Ensuring HubSpot properties exist for Clay integration")
+        background_tasks.add_task(clay_integration.create_clay_properties)
+        
         # Run in background to avoid blocking the response
         background_tasks.add_task(clay_integration.run, company.domain)
         
@@ -57,6 +68,10 @@ async def process_company(company: CompanyDomain, background_tasks: BackgroundTa
 async def process_companies(payload: CompanyDomainList, background_tasks: BackgroundTasks):
     """Process multiple companies from Clay and update HubSpot"""
     try:
+        # Ensure HubSpot properties exist
+        logger.info("Ensuring HubSpot properties exist for Clay integration")
+        background_tasks.add_task(clay_integration.create_clay_properties)
+        
         # Process each company in the background
         for domain in payload.domains:
             background_tasks.add_task(clay_integration.run, domain)
@@ -76,6 +91,10 @@ async def clay_webhook(payload: dict, background_tasks: BackgroundTasks):
     """Handle webhooks from Clay"""
     try:
         logger.info(f"Received Clay webhook: {payload}")
+        
+        # Ensure HubSpot properties exist
+        logger.info("Ensuring HubSpot properties exist for Clay integration")
+        background_tasks.add_task(clay_integration.create_clay_properties)
         
         # Clay webhooks can have different formats depending on the source
         # Let's try to extract the domain in various ways
@@ -203,6 +222,10 @@ async def get_company_profile(domain: str):
 async def sync_to_hubspot(domain: str, background_tasks: BackgroundTasks):
     """Sync company data from Clay to HubSpot"""
     try:
+        # Ensure HubSpot properties exist
+        logger.info("Ensuring HubSpot properties exist for Clay integration")
+        background_tasks.add_task(clay_integration.create_clay_properties)
+        
         # Process the company in the background
         background_tasks.add_task(clay_integration.run, domain)
         
@@ -214,4 +237,27 @@ async def sync_to_hubspot(domain: str, background_tasks: BackgroundTasks):
         }
     except Exception as e:
         logger.error(f"Error syncing to HubSpot: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/create-hubspot-properties")
+async def create_hubspot_properties():
+    """Create custom properties in HubSpot for Clay integration"""
+    try:
+        # Create the properties
+        success = clay_integration.create_clay_properties()
+        
+        if success:
+            return {
+                "status": "success",
+                "message": "Successfully created custom properties in HubSpot",
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Failed to create some custom properties in HubSpot",
+                "timestamp": datetime.now().isoformat()
+            }
+    except Exception as e:
+        logger.error(f"Error creating HubSpot properties: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
