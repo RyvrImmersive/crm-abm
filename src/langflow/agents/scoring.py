@@ -3,6 +3,7 @@ from ..node.types import PythonNode
 from pydantic import BaseModel, Field
 from src.langflow.utils.cache import CacheManager
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +189,9 @@ class CRMScoreAgent(PythonNode):
     def run(self, entity: Dict[str, Any]) -> Dict[str, Any]:
         """Process an entity and return a score"""
         try:
+            # Log the entire entity for debugging
+            logger.info(f"Received entity data: {json.dumps(entity, default=str)[:500]}...")
+            
             # Extract entity_type safely with fallback
             entity_type = "company"  # Default
             if isinstance(entity, dict):
@@ -212,16 +216,29 @@ class CRMScoreAgent(PythonNode):
                 
             logger.info(f"Processing {entity_type} with ID {entity_id}")
             
+            # Check for data in the webhook structure
+            if "data" in entity and isinstance(entity["data"], dict):
+                logger.info(f"Found data field in entity, using it for scoring")
+                # Use the data field for scoring
+                score_entity = entity["data"]
+            else:
+                logger.info(f"No data field found, using entire entity for scoring")
+                score_entity = entity
+                
             # Apply sophisticated scoring based on entity type
             score = 0.5  # Default score
             components = ScoreComponents(signals=["default"], weights={"default": 1.0})
             
             if entity_type == "company":
-                score, components = self.score_company(entity)
+                logger.info(f"Scoring as company type")
+                score, components = self.score_company(score_entity)
             elif entity_type == "contact":
-                score, components = self.score_contact(entity)
+                logger.info(f"Scoring as contact type")
+                score, components = self.score_contact(score_entity)
             else:
                 logger.warning(f"Unknown entity type: {entity_type}, using default scoring")
+            
+            logger.info(f"Final score: {score}, with signals: {components.signals}")
             
             score_result = {
                 "crm_score": score,
