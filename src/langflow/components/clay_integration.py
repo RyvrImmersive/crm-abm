@@ -50,17 +50,28 @@ class ClayIntegrationNode(PythonNode):
                 "limit": 10
             }
             
+            logger.info(f"Requesting news from Clay API: {endpoint} for domain {domain}")
+            
             response = requests.get(
                 endpoint,
                 headers=self._get_headers(),
                 params=params
             )
             
+            # Check for 404 specifically
+            if response.status_code == 404:
+                logger.warning(f"No news found for domain {domain} in Clay API")
+                return []
+                
+            # For other errors, raise the exception
             response.raise_for_status()
             data = response.json()
             
             logger.info(f"Retrieved {len(data.get('news', []))} news items for {domain}")
             return data.get("news", [])
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error getting news for {domain}: {str(e)}")
+            return []
         except Exception as e:
             logger.error(f"Error getting news for {domain}: {str(e)}")
             return []
@@ -74,17 +85,28 @@ class ClayIntegrationNode(PythonNode):
                 "limit": 20
             }
             
+            logger.info(f"Requesting jobs from Clay API: {endpoint} for domain {domain}")
+            
             response = requests.get(
                 endpoint,
                 headers=self._get_headers(),
                 params=params
             )
             
+            # Check for 404 specifically
+            if response.status_code == 404:
+                logger.warning(f"No jobs found for domain {domain} in Clay API")
+                return []
+                
+            # For other errors, raise the exception
             response.raise_for_status()
             data = response.json()
             
             logger.info(f"Retrieved {len(data.get('jobs', []))} job postings for {domain}")
             return data.get("jobs", [])
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error getting jobs for {domain}: {str(e)}")
+            return []
         except Exception as e:
             logger.error(f"Error getting jobs for {domain}: {str(e)}")
             return []
@@ -97,17 +119,28 @@ class ClayIntegrationNode(PythonNode):
                 "domain": domain
             }
             
+            logger.info(f"Requesting funding from Clay API: {endpoint} for domain {domain}")
+            
             response = requests.get(
                 endpoint,
                 headers=self._get_headers(),
                 params=params
             )
             
+            # Check for 404 specifically
+            if response.status_code == 404:
+                logger.warning(f"No funding found for domain {domain} in Clay API")
+                return []
+                
+            # For other errors, raise the exception
             response.raise_for_status()
             data = response.json()
             
             logger.info(f"Retrieved {len(data.get('funding_rounds', []))} funding rounds for {domain}")
             return data.get("funding_rounds", [])
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error getting funding for {domain}: {str(e)}")
+            return []
         except Exception as e:
             logger.error(f"Error getting funding for {domain}: {str(e)}")
             return []
@@ -120,17 +153,28 @@ class ClayIntegrationNode(PythonNode):
                 "domain": domain
             }
             
+            logger.info(f"Requesting company profile from Clay API: {endpoint} for domain {domain}")
+            
             response = requests.get(
                 endpoint,
                 headers=self._get_headers(),
                 params=params
             )
             
+            # Check for 404 specifically
+            if response.status_code == 404:
+                logger.warning(f"No company profile found for domain {domain} in Clay API")
+                return {}
+                
+            # For other errors, raise the exception
             response.raise_for_status()
             data = response.json()
             
             logger.info(f"Retrieved company profile for {domain}")
             return data
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error getting company profile for {domain}: {str(e)}")
+            return {}
         except Exception as e:
             logger.error(f"Error getting company profile for {domain}: {str(e)}")
             return {}
@@ -158,13 +202,18 @@ class ClayIntegrationNode(PythonNode):
     def update_hubspot_company(self, company_id: str, properties: Dict[str, Any]) -> bool:
         """Update a company in HubSpot with new properties"""
         try:
+            from hubspot.crm.companies import SimplePublicObjectInput
+            
+            # Create the SimplePublicObjectInput required by the HubSpot API
+            properties_input = SimplePublicObjectInput(properties=properties)
+            
             # Update the company properties
             self.hubspot_client.crm.companies.basic_api.update(
                 company_id,
-                properties=properties
+                simple_public_object_input=properties_input
             )
             
-            logger.info(f"Updated company {company_id} in HubSpot")
+            logger.info(f"Updated company {company_id} in HubSpot with properties: {properties}")
             return True
         except Exception as e:
             logger.error(f"Error updating company in HubSpot: {str(e)}")
