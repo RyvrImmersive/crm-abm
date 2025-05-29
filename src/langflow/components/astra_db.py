@@ -126,10 +126,10 @@ class AstraDBNode(PythonNode):
             result = self.persist_entity(entity, scores)
             return result
         except Exception as e:
-            self.handle_error(e, context={'node_type': 'AstraDBNode'})
+            logger.error(f"AstraDBNode error: {str(e)}")
             return {
                 'status': 'error',
-                'message': str(e)
+                'error': str(e)
             }
     
     def __del__(self):
