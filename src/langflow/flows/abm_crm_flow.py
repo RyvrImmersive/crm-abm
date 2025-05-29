@@ -68,26 +68,80 @@ class ABMCRMFlow(Flow):
             # Log incoming data
             logger.info(f"Processing webhook data: {webhook_data}")
             
-            # Extract entity ID safely
-            entity_id = "unknown"
-            if webhook_data and isinstance(webhook_data, dict):
-                entity_id = webhook_data.get("id", "unknown")
+            # Extract entity data safely
+            if not webhook_data or not isinstance(webhook_data, dict):
+                logger.warning("Invalid webhook data format")
+                return {
+                    "status": "error",
+                    "message": "Invalid webhook data format"
+                }
                 
-            # Extract entity type safely
-            entity_type = "company"  # Default
-            if webhook_data and isinstance(webhook_data, dict):
-                entity_type = webhook_data.get("type", "company")
-                
-            # Just return a success response for now
-            logger.info(f"Successfully processed webhook for {entity_type} with ID {entity_id}")
+            # Extract entity ID and type safely
+            entity_id = webhook_data.get("id", "unknown")
+            entity_type = webhook_data.get("type", "company")
             
-            return {
-                "status": "success",
-                "message": "Webhook received and processed",
-                "entity_id": entity_id,
-                "entity_type": entity_type,
-                "webhook_data": webhook_data
-            }
+            # Update the HubspotFeedNode entity type to match the data
+            try:
+                hubspot_node = self.nodes["hubspot"]
+                hubspot_node.entity_type = entity_type
+                logger.info(f"Set HubspotFeedNode entity_type to: {entity_type}")
+                
+                # Start with HubSpot feed node to generate prompt
+                prompt_result = hubspot_node.run(entity=webhook_data)
+                logger.info("Successfully generated prompt from HubSpot data")
+                
+                # Process through scoring node
+                try:
+                    scoring_node = self.nodes["scoring"]
+                    score_result = scoring_node.run(entity=prompt_result["prompt"])
+                    logger.info(f"Successfully scored entity: {score_result}")
+                    
+                    # Persist to AstraDB node
+                    try:
+                        astra_node = self.nodes["astra"]
+                        persistence_result = astra_node.run(entity=webhook_data, scores=score_result["score"])
+                        logger.info(f"Successfully persisted to AstraDB: {persistence_result}")
+                        
+                        return {
+                            "status": "success",
+                            "message": "Webhook processed with scoring and persisted to AstraDB",
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "scores": score_result.get("score", {}),
+                            "persistence": persistence_result
+                        }
+                    except Exception as astra_error:
+                        logger.error(f"Error in AstraDB persistence: {str(astra_error)}")
+                        return {
+                            "status": "partial_success",
+                            "message": "Webhook scored but persistence failed",
+                            "error_details": str(astra_error),
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "scores": score_result.get("score", {})
+                        }
+                    
+                except Exception as scoring_error:
+                    logger.error(f"Error in scoring: {str(scoring_error)}")
+                    return {
+                        "status": "partial_success",
+                        "message": "Webhook received but scoring failed",
+                        "error_details": str(scoring_error),
+                        "entity_id": entity_id,
+                        "entity_type": entity_type,
+                        "webhook_data": webhook_data
+                    }
+                    
+            except Exception as hubspot_error:
+                logger.error(f"Error in HubSpot processing: {str(hubspot_error)}")
+                return {
+                    "status": "partial_success",
+                    "message": "Webhook received but HubSpot processing failed",
+                    "error_details": str(hubspot_error),
+                    "entity_id": entity_id,
+                    "entity_type": entity_type,
+                    "webhook_data": webhook_data
+                }
             
         except Exception as e:
             # Log the error
