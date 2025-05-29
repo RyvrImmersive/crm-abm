@@ -94,25 +94,86 @@ class AstraDBNode(PythonNode):
             logger.error(f"Failed to get entity: {str(e)}")
             return None
     
-    def persist_entity(self, entity: Dict[str, Any], scores: Dict[str, float]) -> Dict[str, Any]:
+    def persist_entity(self, entity: Dict[str, Any], scores: Dict[str, Any]) -> Dict[str, Any]:
         """Persist an entity and its scores to AstraDB"""
         try:
-            entity_type = entity.get('type', 'unknown')
-            entity_id = entity.get('id', 'unknown-id')
+            # Log the inputs for debugging
+            logger.info(f"Persisting entity: {type(entity)}, scores: {type(scores)}")
             
+            # Ensure entity is a dictionary
+            if not isinstance(entity, dict):
+                logger.error(f"Entity is not a dictionary: {type(entity)}")
+                return {
+                    'status': 'error',
+                    'error': f"Entity is not a dictionary: {type(entity)}"
+                }
+                
+            # Ensure scores is a dictionary
+            if not isinstance(scores, dict):
+                logger.error(f"Scores is not a dictionary: {type(scores)}")
+                return {
+                    'status': 'error',
+                    'error': f"Scores is not a dictionary: {type(scores)}"
+                }
+            
+            # Extract entity type and ID with better fallbacks
+            entity_type = 'unknown'
+            if 'type' in entity:
+                entity_type = entity['type']
+            elif 'entity_type' in entity:
+                entity_type = entity['entity_type']
+            
+            entity_id = 'unknown-id'
+            if 'id' in entity:
+                entity_id = entity['id']
+            elif 'entity_id' in entity:
+                entity_id = entity['entity_id']
+            
+            logger.info(f"Persisting {entity_type} with ID {entity_id}")
             collection = self._get_collection(entity_type)
+            
+            # Create a safe copy of the entity and scores
+            safe_entity = {}
+            for key, value in entity.items():
+                if isinstance(value, datetime):
+                    safe_entity[key] = value.isoformat()
+                elif isinstance(value, dict) or isinstance(value, list):
+                    try:
+                        # Test if it's JSON serializable
+                        json.dumps(value)
+                        safe_entity[key] = value
+                    except TypeError:
+                        # If not serializable, convert to string
+                        safe_entity[key] = str(value)
+                else:
+                    safe_entity[key] = value
+            
+            # Create a safe copy of scores
+            safe_scores = {}
+            for key, value in scores.items():
+                if key == 'components' and isinstance(value, dict):
+                    # Handle components specially
+                    safe_scores[key] = {}
+                    for comp_key, comp_value in value.items():
+                        if isinstance(comp_value, (dict, list)):
+                            try:
+                                # Test if it's JSON serializable
+                                json.dumps(comp_value)
+                                safe_scores[key][comp_key] = comp_value
+                            except TypeError:
+                                # If not serializable, convert to string
+                                safe_scores[key][comp_key] = str(comp_value)
+                        else:
+                            safe_scores[key][comp_key] = comp_value
+                else:
+                    safe_scores[key] = value
             
             # Merge entity with scores
             entity_with_scores = {
-                **entity,
-                'scores': scores,
+                **safe_entity,
+                'scores': safe_scores,
                 'updated_at': datetime.now().isoformat()
             }
-            
-            # Convert any datetime objects to ISO format strings
-            for key, value in entity_with_scores.items():
-                if isinstance(value, datetime):
-                    entity_with_scores[key] = value.isoformat()
             
             # In a real implementation, we would insert into the database
             # For development/testing, we'll just log the operation
@@ -140,6 +201,31 @@ class AstraDBNode(PythonNode):
     def run(self, entity: Dict[str, Any], scores: Dict[str, Any]) -> Dict[str, Any]:
         """Run the node's main processing logic"""
         try:
+            # Log the inputs for debugging
+            logger.info(f"AstraDBNode.run received entity: {type(entity)}, scores: {type(scores)}")
+            
+            # Ensure scores is a dictionary
+            if scores is None:
+                logger.warning("Scores is None, using empty dictionary")
+                scores = {}
+            elif not isinstance(scores, dict):
+                logger.warning(f"Scores is not a dictionary: {type(scores)}, using empty dictionary")
+                scores = {}
+                
+            # Ensure entity is a dictionary
+            if entity is None:
+                logger.error("Entity is None, cannot persist")
+                return {
+                    'status': 'error',
+                    'error': "Entity is None, cannot persist"
+                }
+            elif not isinstance(entity, dict):
+                logger.error(f"Entity is not a dictionary: {type(entity)}")
+                return {
+                    'status': 'error',
+                    'error': f"Entity is not a dictionary: {type(entity)}"
+                }
+            
             # Call persist_entity to store the data
             result = self.persist_entity(entity, scores)
             return result
