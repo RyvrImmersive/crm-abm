@@ -51,27 +51,43 @@ class CRMScoreAgent(PythonNode):
         weights = {}
         
         try:
+            # Extract properties from the entity structure
+            properties = {}
+            
+            # Check if properties are in the main entity
+            if 'properties' in entity and isinstance(entity['properties'], dict):
+                properties = entity['properties']
+            # Check if properties are directly in the entity
+            elif any(key in entity for key in ['industry', 'domain', 'description']):
+                properties = entity
+                
+            logger.info(f"Scoring company with properties: {properties}")
+            
             # Hiring signals (10%)
-            if entity.get('hiring') or 'hiring' in str(entity.get('description', '')).lower():
+            if (properties.get('hiring') == 'true' or 
+                entity.get('hiring') == 'true' or 
+                'hiring' in str(properties.get('description', '')).lower()):
                 score += 0.1
                 signals.append('hiring')
                 weights['hiring'] = 0.1
             
             # Funding signals (10%)
-            if entity.get('funding') or any(term in str(entity.get('description', '')).lower() 
-                                          for term in ['funding', 'raised', 'investment', 'venture']):
+            funding_terms = ['funding', 'raised', 'investment', 'venture']
+            if (properties.get('funding') == 'true' or 
+                entity.get('funding') == 'true' or 
+                any(term in str(properties.get('description', '')).lower() for term in funding_terms)):
                 score += 0.1
                 signals.append('funding')
                 weights['funding'] = 0.1
             
             # Industry signals (10%)
-            if entity.get('industry'):
+            if properties.get('industry') or entity.get('industry'):
                 score += 0.1
                 signals.append('industry')
                 weights['industry'] = 0.1
                 
             # Domain signals (10%)
-            if entity.get('domain'):
+            if properties.get('domain') or entity.get('domain'):
                 score += 0.1
                 signals.append('domain')
                 weights['domain'] = 0.1
@@ -79,7 +95,7 @@ class CRMScoreAgent(PythonNode):
             # Positive news signals (10%)
             news_terms = ['growth', 'expansion', 'success', 'launch', 'partnership', 
                          'award', 'recognition', 'innovation', 'milestone']
-            description = str(entity.get('description', '')).lower()
+            description = str(properties.get('description', entity.get('description', ''))).lower()
             if any(term in description for term in news_terms):
                 score += 0.1
                 signals.append('positive_news')
@@ -106,8 +122,20 @@ class CRMScoreAgent(PythonNode):
         weights = {}
         
         try:
+            # Extract properties from the entity structure
+            properties = {}
+            
+            # Check if properties are in the main entity
+            if 'properties' in entity and isinstance(entity['properties'], dict):
+                properties = entity['properties']
+            # Check if properties are directly in the entity
+            elif any(key in entity for key in ['title', 'firstname', 'lastname']):
+                properties = entity
+                
+            logger.info(f"Scoring contact with properties: {properties}")
+            
             # Title hierarchy scoring
-            title = str(entity.get('title', '')).lower()
+            title = str(properties.get('title', entity.get('title', ''))).lower()
             
             # C-level executives (20%)
             if any(term in title for term in ['c-', 'chief', 'ceo', 'cfo', 'cto', 'coo', 'president']):
@@ -131,13 +159,15 @@ class CRMScoreAgent(PythonNode):
                 weights['manager-level'] = 0.05
             
             # Meeting engagement (10%)
-            if entity.get('meeting_engagement') or entity.get('last_meeting_date'):
+            if (properties.get('meeting_engagement') or properties.get('last_meeting_date') or
+                entity.get('meeting_engagement') or entity.get('last_meeting_date')):
                 score += 0.1
                 signals.append('meeting_engagement')
                 weights['meeting_engagement'] = 0.1
             
             # Email engagement (5%)
-            if entity.get('email_engagement') or entity.get('last_email_date'):
+            if (properties.get('email_engagement') or properties.get('last_email_date') or
+                entity.get('email_engagement') or entity.get('last_email_date')):
                 score += 0.05
                 signals.append('email_engagement')
                 weights['email_engagement'] = 0.05
