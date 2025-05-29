@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # Initialize Clay integration
 clay_integration = ClayIntegrationNode(
     clay_api_key=os.getenv("CLAY_API_KEY", ""),
-    hubspot_api_key=os.getenv("HUBSPOT_ACCESS_TOKEN", ""),
+    hubspot_api_key=os.getenv("HUBSPOT_API_KEY", ""),
     base_url=os.getenv("CLAY_API_BASE_URL", "https://api.clay.com/v1")
 )
 

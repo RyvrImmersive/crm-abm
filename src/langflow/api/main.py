@@ -23,7 +23,7 @@ app.include_router(clay_router)
 
 # Initialize flow with environment variables
 flow = ABMCRMFlow(
-    hubspot_access_token=os.getenv("HUBSPOT_ACCESS_TOKEN"),
+    hubspot_access_token=os.getenv("HUBSPOT_API_KEY"),
     astra_db_id=os.getenv("ASTRA_DB_ID"),
     astra_db_region=os.getenv("ASTRA_DB_REGION"),
     astra_db_token=os.getenv("ASTRA_DB_TOKEN")
@@ -31,7 +31,7 @@ flow = ABMCRMFlow(
 
 # Initialize HubSpot updater
 hubspot_updater = HubspotUpdaterNode(
-    access_token=os.getenv("HUBSPOT_ACCESS_TOKEN"),
+    access_token=os.getenv("HUBSPOT_API_KEY"),
     batch_size=25,
     max_entities=100
 )
