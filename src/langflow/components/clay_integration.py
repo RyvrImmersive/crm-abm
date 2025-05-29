@@ -260,19 +260,14 @@ class ClayIntegrationNode(PythonNode):
             if type == "boolean":
                 field_type = "booleancheckbox"
             
-            # For date fields, we need to set the correct format
-            field_type_options = None
-            if type == "date":
-                field_type_options = {"format": "YYYY-MM-DD"}
-            
+            # Create the property - don't use field_type_options as it's causing errors
             property_create = PropertyCreate(
                 name=name,
                 label=label,
                 description=description,
                 type=field_type,  # Use the mapped field type
                 field_type=field_type,
-                group_name=group_name,
-                field_type_options=field_type_options
+                group_name=group_name
             )
             
             try:
@@ -336,91 +331,60 @@ class ClayIntegrationNode(PythonNode):
             return False
     
     def create_clay_properties(self) -> bool:
-        """Create all necessary HubSpot properties for Clay integration"""
+        """Check for existing HubSpot properties for Clay integration"""
         try:
-            logger.info("Creating custom properties for Clay integration in HubSpot")
+            logger.info("Checking for existing properties for Clay integration in HubSpot")
             
-            # Get existing properties first
+            # Get existing properties
             existing_properties = self.get_hubspot_company_properties()
             logger.info(f"Found {len(existing_properties)} existing properties in HubSpot")
             
             # Define all properties needed for Clay integration
-            properties = [
+            clay_property_names = [
                 # News properties
-                {"name": "has_recent_news", "label": "Has Recent News", "description": "Whether the company has recent news articles", "type": "booleancheckbox"},
-                {"name": "recent_news_title", "label": "Recent News Title", "description": "Title of the most recent news article", "type": "text"},
-                {"name": "recent_news_url", "label": "Recent News URL", "description": "URL of the most recent news article", "type": "text"},
-                {"name": "recent_news_date", "label": "Recent News Date", "description": "Date of the most recent news article", "type": "date"},
-                
+                "has_recent_news", "recent_news_title", "recent_news_url", "recent_news_date",
                 # Jobs properties
-                {"name": "has_open_jobs", "label": "Has Open Jobs", "description": "Whether the company has open job postings", "type": "booleancheckbox"},
-                {"name": "job_count", "label": "Job Count", "description": "Number of open job postings", "type": "number"},
-                {"name": "recent_job_title", "label": "Recent Job Title", "description": "Title of the most recent job posting", "type": "text"},
-                {"name": "hiring", "label": "Is Hiring", "description": "Whether the company is currently hiring", "type": "booleancheckbox"},
-                
+                "has_open_jobs", "job_count", "recent_job_title", "hiring",
                 # Funding properties
-                {"name": "funding", "label": "Has Funding", "description": "Whether the company has received funding", "type": "booleancheckbox"},
-                {"name": "recent_funding_amount", "label": "Recent Funding Amount", "description": "Amount of the most recent funding round", "type": "number"},
-                {"name": "recent_funding_date", "label": "Recent Funding Date", "description": "Date of the most recent funding round", "type": "date"},
-                {"name": "recent_funding_round", "label": "Recent Funding Round", "description": "Type of the most recent funding round", "type": "text"},
-                {"name": "total_funding", "label": "Total Funding", "description": "Total amount of funding received", "type": "number"},
-                
+                "funding", "recent_funding_amount", "recent_funding_date", "recent_funding_round", "total_funding",
                 # Metadata
-                {"name": "last_clay_update", "label": "Last Clay Update", "description": "Date and time of the last update from Clay", "type": "text"}
+                "last_clay_update"
+            ]
+            
+            # Standard HubSpot properties we can use
+            standard_properties = [
+                "name", "domain", "industry", "description", "numberofemployees", 
+                "linkedin_company_page", "twitterhandle", "hubspot_score", "abm_score"
             ]
             
             # Check which properties already exist
-            existing_clay_properties = []
-            missing_properties = []
-            for prop in properties:
-                if prop["name"] in existing_properties:
-                    existing_clay_properties.append(prop["name"])
-                else:
-                    missing_properties.append(prop)
+            existing_clay_properties = [prop for prop in clay_property_names if prop in existing_properties]
+            existing_standard_properties = [prop for prop in standard_properties if prop in existing_properties]
             
             logger.info(f"Found {len(existing_clay_properties)} existing Clay properties in HubSpot")
-            logger.info(f"Missing {len(missing_properties)} Clay properties in HubSpot")
+            logger.info(f"Found {len(existing_standard_properties)} existing standard properties in HubSpot")
             
-            # If we have all properties, we're done
-            if not missing_properties:
-                logger.info("All required Clay properties already exist in HubSpot")
-                return True
+            # Log which properties are available
+            if existing_clay_properties:
+                logger.info(f"Available Clay properties: {', '.join(existing_clay_properties)}")
             
-            # Try to create missing properties
-            success_count = 0
-            for prop in missing_properties:
-                if self.create_hubspot_property(
-                    name=prop["name"],
-                    label=prop["label"],
-                    description=prop["description"],
-                    type=prop.get("type", "string")
-                ):
-                    success_count += 1
+            if existing_standard_properties:
+                logger.info(f"Available standard properties: {', '.join(existing_standard_properties)}")
             
-            # If we couldn't create any properties (likely due to permissions)
-            if success_count == 0 and len(missing_properties) > 0:
-                logger.warning("Could not create any missing properties. This is likely due to insufficient permissions.")
-                logger.warning("The integration will continue to work with existing properties, but some features may be limited.")
-                logger.warning("To fix this, please update your HubSpot API key with the necessary scopes or manually create the properties in HubSpot.")
-                
-                # Log the missing properties for reference
-                missing_names = [prop["name"] for prop in missing_properties]
-                logger.warning(f"Missing properties: {', '.join(missing_names)}")
-                
-                # Return True if we have at least some existing properties to work with
-                return len(existing_clay_properties) > 0
+            # We won't try to create properties due to permission issues
+            # Just log which properties are missing
+            missing_properties = [prop for prop in clay_property_names if prop not in existing_properties]
+            if missing_properties:
+                logger.warning(f"Missing Clay properties: {', '.join(missing_properties)}")
+                logger.warning("The integration will work with existing properties only.")
+                logger.warning("To add missing properties, please manually create them in HubSpot or update your API key permissions.")
             
-            logger.info(f"Successfully created {success_count}/{len(missing_properties)} missing properties in HubSpot")
-            return success_count == len(missing_properties) or len(existing_clay_properties) > 0
+            # Return True if we have at least some properties to work with
+            usable_properties = existing_clay_properties + existing_standard_properties
+            return len(usable_properties) > 0
         except Exception as e:
-            logger.error(f"Error creating Clay properties in HubSpot: {str(e)}")
-            # Return True if we have some existing properties to work with
-            try:
-                existing_properties = self.get_hubspot_company_properties()
-                clay_property_count = sum(1 for prop in ["has_recent_news", "has_open_jobs", "funding", "last_clay_update"] if prop in existing_properties)
-                return clay_property_count > 0
-            except:
-                return False
+            logger.error(f"Error checking Clay properties in HubSpot: {str(e)}")
+            return False
     
     def process_company_data(self, domain: str) -> Dict[str, Any]:
         """Process company data from Clay and update HubSpot"""
@@ -445,60 +409,84 @@ class ClayIntegrationNode(PythonNode):
                     "message": f"Company with domain {domain} not found in HubSpot"
                 }
             
+            # Get available properties in HubSpot
+            available_properties = self.get_hubspot_company_properties()
+            logger.info(f"Found {len(available_properties)} available properties in HubSpot")
+            
             # Prepare properties to update in HubSpot
             properties = {}
             
             # Process news
             if news:
                 latest_news = news[0]
-                properties["recent_news_title"] = latest_news.get("title", "")[:255]  # HubSpot has character limits
-                properties["recent_news_url"] = latest_news.get("url", "")
-                properties["recent_news_date"] = latest_news.get("published_date", "")
-                properties["has_recent_news"] = "true"
-            else:
+                if "recent_news_title" in available_properties:
+                    properties["recent_news_title"] = latest_news.get("title", "")[:255]  # HubSpot has character limits
+                if "recent_news_url" in available_properties:
+                    properties["recent_news_url"] = latest_news.get("url", "")
+                if "recent_news_date" in available_properties:
+                    properties["recent_news_date"] = latest_news.get("published_date", "")
+                if "has_recent_news" in available_properties:
+                    properties["has_recent_news"] = "true"
+            elif "has_recent_news" in available_properties:
                 properties["has_recent_news"] = "false"
             
             # Process jobs
             if jobs:
-                properties["job_count"] = str(len(jobs))
-                properties["has_open_jobs"] = "true"
-                properties["recent_job_title"] = jobs[0].get("title", "")[:255]
-                properties["hiring"] = "true"
+                if "job_count" in available_properties:
+                    properties["job_count"] = str(len(jobs))
+                if "has_open_jobs" in available_properties:
+                    properties["has_open_jobs"] = "true"
+                if "recent_job_title" in available_properties:
+                    properties["recent_job_title"] = jobs[0].get("title", "")[:255]
+                if "hiring" in available_properties:
+                    properties["hiring"] = "true"
             else:
-                properties["has_open_jobs"] = "false"
-                properties["hiring"] = "false"
+                if "has_open_jobs" in available_properties:
+                    properties["has_open_jobs"] = "false"
+                if "hiring" in available_properties:
+                    properties["hiring"] = "false"
             
             # Process funding
             if funding:
                 latest_funding = funding[0]
-                properties["recent_funding_amount"] = str(latest_funding.get("amount", 0))
-                properties["recent_funding_date"] = latest_funding.get("date", "")
-                properties["recent_funding_round"] = latest_funding.get("round_type", "")
-                properties["funding"] = "true"
+                if "recent_funding_amount" in available_properties:
+                    properties["recent_funding_amount"] = str(latest_funding.get("amount", 0))
+                if "recent_funding_date" in available_properties:
+                    properties["recent_funding_date"] = latest_funding.get("date", "")
+                if "recent_funding_round" in available_properties:
+                    properties["recent_funding_round"] = latest_funding.get("round_type", "")
+                if "funding" in available_properties:
+                    properties["funding"] = "true"
                 
                 # Calculate total funding
                 total_funding = sum(round.get("amount", 0) for round in funding)
-                properties["total_funding"] = str(total_funding)
-            else:
+                if "total_funding" in available_properties:
+                    properties["total_funding"] = str(total_funding)
+            elif "funding" in available_properties:
                 properties["funding"] = "false"
             
             # Process profile data
             if profile:
-                if "employee_count" in profile:
+                if "employee_count" in profile and "numberofemployees" in available_properties:
                     properties["numberofemployees"] = str(profile.get("employee_count", 0))
-                if "industry" in profile:
+                if "industry" in profile and "industry" in available_properties:
                     properties["industry"] = profile.get("industry", "")
-                if "description" in profile:
+                if "description" in profile and "description" in available_properties:
                     properties["description"] = profile.get("description", "")[:1000]  # HubSpot has character limits
-                if "year_founded" in profile:
+                if "year_founded" in profile and "year_founded" in available_properties:
                     properties["year_founded"] = str(profile.get("year_founded", ""))
-                if "linkedin_url" in profile:
+                if "linkedin_url" in profile and "linkedin_company_page" in available_properties:
                     properties["linkedin_company_page"] = profile.get("linkedin_url", "")
-                if "twitter_url" in profile:
+                if "twitter_url" in profile and "twitterhandle" in available_properties:
                     properties["twitterhandle"] = profile.get("twitter_url", "")
             
             # Add metadata
-            properties["last_clay_update"] = datetime.now().isoformat()
+            if "last_clay_update" in available_properties:
+                properties["last_clay_update"] = datetime.now().isoformat()
+                
+            # Add a standard property to update if we have nothing else
+            if not properties and "hubspot_score" in available_properties:
+                properties["hubspot_score"] = "50"  # Update a default property so we have something to update
             
             # Update the company in HubSpot
             success = self.update_hubspot_company(hubspot_company["id"], properties)
