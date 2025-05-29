@@ -32,9 +32,9 @@ class CompanyDomainList(BaseModel):
     force_update: bool = False
 
 class ClayWebhookPayload(BaseModel):
-    event_type: str
-    company: Dict[str, Any]
-    data: Dict[str, Any]
+    # Clay webhook can send any JSON payload
+    # We'll accept any dictionary and parse it in the handler
+    pass
 
 @router.post("/process-company")
 async def process_company(company: CompanyDomain, background_tasks: BackgroundTasks):
@@ -72,32 +72,65 @@ async def process_companies(payload: CompanyDomainList, background_tasks: Backgr
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/webhook")
-async def clay_webhook(payload: ClayWebhookPayload, background_tasks: BackgroundTasks):
+async def clay_webhook(payload: dict, background_tasks: BackgroundTasks):
     """Handle webhooks from Clay"""
     try:
-        # Extract domain from the company data
-        domain = payload.company.get("domain")
+        logger.info(f"Received Clay webhook: {payload}")
+        
+        # Clay webhooks can have different formats depending on the source
+        # Let's try to extract the domain in various ways
+        domain = None
+        
+        # Try to extract domain from common Clay webhook formats
+        if isinstance(payload, dict):
+            # Try direct domain field
+            if "domain" in payload:
+                domain = payload["domain"]
+            # Try company object
+            elif "company" in payload and isinstance(payload["company"], dict):
+                domain = payload["company"].get("domain")
+            # Try data object
+            elif "data" in payload and isinstance(payload["data"], dict):
+                if "domain" in payload["data"]:
+                    domain = payload["data"]["domain"]
+                elif "company" in payload["data"] and isinstance(payload["data"]["company"], dict):
+                    domain = payload["data"]["company"].get("domain")
+            # Try properties object
+            elif "properties" in payload and isinstance(payload["properties"], dict):
+                domain = payload["properties"].get("domain")
         
         if not domain:
+            logger.warning(f"Could not extract domain from webhook payload: {payload}")
             return {
                 "status": "error",
-                "message": "No domain provided in webhook payload",
+                "message": "No domain could be extracted from webhook payload",
                 "timestamp": datetime.now().isoformat()
             }
+        
+        logger.info(f"Extracted domain from webhook: {domain}")
         
         # Process the company in the background
         background_tasks.add_task(clay_integration.run, domain)
         
+        # Extract event type if available
+        event_type = "unknown"
+        if isinstance(payload, dict) and "event_type" in payload:
+            event_type = payload["event_type"]
+        
         return {
             "status": "success",
             "message": f"Processing webhook for {domain}",
-            "event_type": payload.event_type,
+            "event_type": event_type,
             "domain": domain,
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
         logger.error(f"Error processing Clay webhook: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "status": "error",
+            "message": f"Error processing Clay webhook: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
 
 @router.get("/company-news/{domain}")
 async def get_company_news(domain: str):
