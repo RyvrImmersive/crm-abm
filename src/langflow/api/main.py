@@ -1,9 +1,11 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from src.langflow.flows.abm_crm_flow import ABMCRMFlow
 from src.langflow.utils.cache import CacheManager
+from src.langflow.utils.scheduler import scheduler
+from src.langflow.components.hubspot_updater import HubspotUpdaterNode
 import logging
 import os
 
@@ -23,6 +25,13 @@ flow = ABMCRMFlow(
     astra_db_token=os.getenv("ASTRA_DB_TOKEN")
 )
 
+# Initialize HubSpot updater
+hubspot_updater = HubspotUpdaterNode(
+    access_token=os.getenv("HUBSPOT_ACCESS_TOKEN"),
+    batch_size=25,
+    max_entities=100
+)
+
 class WebhookPayload(BaseModel):
     event_type: str
     data: Dict[str, Any]
@@ -36,6 +45,20 @@ class FlowStatus(BaseModel):
     nodes: Dict[str, Any]
     connections: List[Dict[str, str]]
     cache_stats: CacheStats
+
+class ScheduleTask(BaseModel):
+    interval_minutes: int
+    entity_types: List[str] = ["company", "contact"]
+    batch_size: Optional[int] = None
+    max_entities: Optional[int] = None
+
+class ScheduleStatus(BaseModel):
+    task_id: str
+    interval: int
+    last_run: float
+    last_run_formatted: str
+    running: bool
+    error_count: int
 
 @app.post("/hubspot-webhook")
 async def handle_hubspot_webhook(payload: WebhookPayload):
@@ -196,6 +219,36 @@ async def root():
                 "path": "/flow/status",
                 "method": "GET",
                 "description": "Get current flow status and cache stats"
+            },
+            {
+                "path": "/scheduler/start",
+                "method": "POST",
+                "description": "Start the scheduler"
+            },
+            {
+                "path": "/scheduler/stop",
+                "method": "POST",
+                "description": "Stop the scheduler"
+            },
+            {
+                "path": "/scheduler/status",
+                "method": "GET",
+                "description": "Get scheduler status"
+            },
+            {
+                "path": "/scheduler/hubspot-update",
+                "method": "POST",
+                "description": "Schedule HubSpot updates"
+            },
+            {
+                "path": "/scheduler/hubspot-update",
+                "method": "DELETE",
+                "description": "Remove scheduled HubSpot updates"
+            },
+            {
+                "path": "/hubspot/update-now",
+                "method": "POST",
+                "description": "Run HubSpot update immediately"
             }
         ]
     }
@@ -208,6 +261,131 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0"
     }
+
+# Scheduler endpoints
+@app.post("/scheduler/start")
+async def start_scheduler():
+    """Start the scheduler"""
+    try:
+        scheduler.start()
+        return {"status": "success", "message": "Scheduler started"}
+    except Exception as e:
+        logger.error(f"Error starting scheduler: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/scheduler/stop")
+async def stop_scheduler():
+    """Stop the scheduler"""
+    try:
+        scheduler.stop()
+        return {"status": "success", "message": "Scheduler stopped"}
+    except Exception as e:
+        logger.error(f"Error stopping scheduler: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/scheduler/status")
+async def get_scheduler_status():
+    """Get scheduler status"""
+    try:
+        tasks = scheduler.get_all_tasks()
+        return {
+            "status": "success",
+            "running": scheduler.running,
+            "tasks": tasks
+        }
+    except Exception as e:
+        logger.error(f"Error getting scheduler status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/scheduler/hubspot-update")
+async def schedule_hubspot_update(task: ScheduleTask):
+    """Schedule HubSpot updates"""
+    try:
+        # Convert minutes to seconds
+        interval_seconds = task.interval_minutes * 60
+        
+        # Update batch size and max entities if provided
+        if task.batch_size is not None:
+            hubspot_updater.batch_size = task.batch_size
+        
+        if task.max_entities is not None:
+            hubspot_updater.max_entities = task.max_entities
+        
+        # Define the task function
+        def update_hubspot_task():
+            logger.info("Running scheduled HubSpot update")
+            result = hubspot_updater.run()
+            logger.info(f"Scheduled HubSpot update completed: {result['status']}")
+            return result
+        
+        # Add the task to the scheduler
+        task_id = "hubspot_update"
+        
+        # Remove existing task if it exists
+        scheduler.remove_task(task_id)
+        
+        # Add the new task
+        scheduler.add_task(
+            task_id=task_id,
+            func=update_hubspot_task,
+            interval_seconds=interval_seconds
+        )
+        
+        # Make sure the scheduler is running
+        if not scheduler.running:
+            scheduler.start()
+        
+        return {
+            "status": "success",
+            "message": f"HubSpot update scheduled every {task.interval_minutes} minutes",
+            "task_id": task_id,
+            "interval_seconds": interval_seconds
+        }
+    except Exception as e:
+        logger.error(f"Error scheduling HubSpot update: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/scheduler/hubspot-update")
+async def remove_hubspot_update():
+    """Remove scheduled HubSpot updates"""
+    try:
+        task_id = "hubspot_update"
+        result = scheduler.remove_task(task_id)
+        
+        if result:
+            return {"status": "success", "message": "HubSpot update schedule removed"}
+        else:
+            return {"status": "warning", "message": "No HubSpot update schedule found"}
+    except Exception as e:
+        logger.error(f"Error removing HubSpot update schedule: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/hubspot/update-now")
+async def update_hubspot_now(background_tasks: BackgroundTasks):
+    """Run HubSpot update immediately"""
+    try:
+        # Run the update in the background
+        background_tasks.add_task(hubspot_updater.run)
+        
+        return {
+            "status": "success",
+            "message": "HubSpot update started in background"
+        }
+    except Exception as e:
+        logger.error(f"Error starting HubSpot update: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Start the scheduler when the app starts
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting up the application")
+    scheduler.start()
+
+# Stop the scheduler when the app shuts down
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Shutting down the application")
+    scheduler.stop()
 
 if __name__ == "__main__":
     import uvicorn
