@@ -96,28 +96,46 @@ class AstraDBNode(PythonNode):
     
     def persist_entity(self, entity: Dict[str, Any], scores: Dict[str, float]) -> Dict[str, Any]:
         """Persist an entity and its scores to AstraDB"""
-        entity_type = entity.get('type', 'unknown')
-        entity_id = entity.get('id', 'unknown-id')
-        
-        collection = self._get_collection(entity_type)
-        
-        # Merge entity with scores
-        entity_with_scores = {
-            **entity,
-            'scores': scores,
-            'updated_at': datetime.now().isoformat()
-        }
-        
-        # In a real implementation, we would insert into the database
-        # For development/testing, we'll just log the operation
-        logger.info(f"Would insert into collection '{collection}': {entity_id}")
-        logger.info(f"Entity data: {json.dumps(entity_with_scores)[:100]}...")
-        
-        return {
-            'status': 'success',
-            'entity_id': entity_id,
-            'entity_type': entity_type
-        }
+        try:
+            entity_type = entity.get('type', 'unknown')
+            entity_id = entity.get('id', 'unknown-id')
+            
+            collection = self._get_collection(entity_type)
+            
+            # Merge entity with scores
+            entity_with_scores = {
+                **entity,
+                'scores': scores,
+                'updated_at': datetime.now().isoformat()
+            }
+            
+            # Convert any datetime objects to ISO format strings
+            for key, value in entity_with_scores.items():
+                if isinstance(value, datetime):
+                    entity_with_scores[key] = value.isoformat()
+            
+            # In a real implementation, we would insert into the database
+            # For development/testing, we'll just log the operation
+            logger.info(f"Would insert into collection '{collection}': {entity_id}")
+            
+            # Use a safer approach to log the entity data
+            try:
+                entity_json = json.dumps(entity_with_scores)[:100]
+                logger.info(f"Entity data: {entity_json}...")
+            except TypeError as json_error:
+                logger.warning(f"Could not serialize entity data: {str(json_error)}")
+            
+            return {
+                'status': 'success',
+                'entity_id': entity_id,
+                'entity_type': entity_type
+            }
+        except Exception as e:
+            logger.error(f"Error persisting entity: {str(e)}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
     
     def run(self, entity: Dict[str, Any], scores: Dict[str, Any]) -> Dict[str, Any]:
         """Run the node's main processing logic"""
