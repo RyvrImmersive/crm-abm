@@ -102,7 +102,10 @@ class ABMCRMFlow(Flow):
             }
             
         except Exception as e:
-            # Create a simple error context
+            # Log the error first
+            logger.error(f"Error processing webhook: {str(e)}")
+            
+            # Create a simple error context - avoid using any variables that might not be defined
             error_context = {
                 'node_type': 'ABMCRMFlow',
                 'node_id': 'process_webhook',
@@ -113,14 +116,18 @@ class ABMCRMFlow(Flow):
                 }
             }
             
-            # Log the error
-            logger.error(f"Error processing webhook: {str(e)}")
-            
+            # Get entity_id safely
+            entity_id = None
+            try:
+                entity_id = webhook_data.get("id", "unknown")
+            except:
+                entity_id = "unknown"
+                
             # Return error response
             return {
                 "status": "error",
                 "message": str(e),
-                "entity_id": webhook_data.get("id"),
+                "entity_id": entity_id,
                 "error_context": error_context
             }
     
@@ -128,22 +135,32 @@ class ABMCRMFlow(Flow):
         """
         Update the entity type for processing based on event type
         """
-        # Extract entity type from event type (e.g., "company.created" -> "company")
-        if "." in event_type:
-            entity_type = event_type.split(".")[0]
-        else:
-            entity_type = event_type
+        try:
+            # Default entity_type in case of errors
+            entity_type = "company"
             
-        # Validate entity type
-        valid_types = ["company", "contact", "deal"]
-        if entity_type not in valid_types:
-            raise ValueError(f"Invalid entity type: {event_type}")
+            # Extract entity type from event type (e.g., "company.created" -> "company")
+            if event_type and "." in event_type:
+                entity_type = event_type.split(".")[0]
+            elif event_type:
+                entity_type = event_type
+                
+            # Validate entity type
+            valid_types = ["company", "contact", "deal"]
+            if entity_type not in valid_types:
+                logger.warning(f"Invalid entity type: {event_type}, defaulting to 'company'")
+                entity_type = "company"  # Default to company for invalid types
+                
+            # Update the HubspotFeedNode entity type
+            hubspot_node = self.nodes["hubspot"]
+            hubspot_node.entity_type = entity_type
+            logger.info(f"Updated entity_type to: {entity_type}")
             
-        # Update the HubspotFeedNode entity type
-        hubspot_node = self.nodes["hubspot"]
-        hubspot_node.entity_type = entity_type
-        
-        return {"status": "success", "entity_type": entity_type}
+            return {"status": "success", "entity_type": entity_type}
+            
+        except Exception as e:
+            logger.error(f"Error updating entity type: {str(e)}")
+            return {"status": "error", "message": str(e)}
     
     def get_flow_status(self) -> dict:
         """
