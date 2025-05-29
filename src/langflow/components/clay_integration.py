@@ -199,13 +199,44 @@ class ClayIntegrationNode(PythonNode):
             logger.error(f"Error finding company in HubSpot: {str(e)}")
             return None
     
+    def get_hubspot_company_properties(self) -> List[str]:
+        """Get all available company properties in HubSpot"""
+        try:
+            # Get all company properties
+            properties_page = self.hubspot_client.crm.properties.core_api.get_all(object_type="companies")
+            property_names = [prop.name for prop in properties_page.results]
+            logger.info(f"Retrieved {len(property_names)} company properties from HubSpot")
+            return property_names
+        except Exception as e:
+            logger.error(f"Error getting company properties from HubSpot: {str(e)}")
+            # Return a list of common properties that are likely to exist
+            return ["name", "domain", "industry", "description", "hubspot_score", "abm_score"]
+    
     def update_hubspot_company(self, company_id: str, properties: Dict[str, Any]) -> bool:
         """Update a company in HubSpot with new properties"""
         try:
             from hubspot.crm.companies import SimplePublicObjectInput
             
+            # Get available HubSpot properties
+            available_properties = self.get_hubspot_company_properties()
+            
+            # Filter properties to only include those that exist in HubSpot
+            filtered_properties = {}
+            for key, value in properties.items():
+                if key in available_properties:
+                    filtered_properties[key] = value
+                else:
+                    logger.warning(f"Property '{key}' does not exist in HubSpot and will be skipped")
+            
+            # If no valid properties, return early
+            if not filtered_properties:
+                logger.warning(f"No valid properties to update for company {company_id}")
+                return False
+            
+            logger.info(f"Updating company {company_id} with properties: {filtered_properties}")
+            
             # Create the SimplePublicObjectInput required by the HubSpot API
-            properties_input = SimplePublicObjectInput(properties=properties)
+            properties_input = SimplePublicObjectInput(properties=filtered_properties)
             
             # Update the company properties
             self.hubspot_client.crm.companies.basic_api.update(
@@ -213,7 +244,7 @@ class ClayIntegrationNode(PythonNode):
                 simple_public_object_input=properties_input
             )
             
-            logger.info(f"Updated company {company_id} in HubSpot with properties: {properties}")
+            logger.info(f"Successfully updated company {company_id} in HubSpot")
             return True
         except Exception as e:
             logger.error(f"Error updating company in HubSpot: {str(e)}")
@@ -244,9 +275,9 @@ class ClayIntegrationNode(PythonNode):
             # Process news
             if news:
                 latest_news = news[0]
-                properties["latest_news_title"] = latest_news.get("title", "")[:255]  # HubSpot has character limits
-                properties["latest_news_url"] = latest_news.get("url", "")
-                properties["latest_news_date"] = latest_news.get("published_date", "")
+                properties["recent_news_title"] = latest_news.get("title", "")[:255]  # HubSpot has character limits
+                properties["recent_news_url"] = latest_news.get("url", "")
+                properties["recent_news_date"] = latest_news.get("published_date", "")
                 properties["has_recent_news"] = "true"
             else:
                 properties["has_recent_news"] = "false"
@@ -255,7 +286,7 @@ class ClayIntegrationNode(PythonNode):
             if jobs:
                 properties["job_count"] = str(len(jobs))
                 properties["has_open_jobs"] = "true"
-                properties["latest_job_title"] = jobs[0].get("title", "")[:255]
+                properties["recent_job_title"] = jobs[0].get("title", "")[:255]
                 properties["hiring"] = "true"
             else:
                 properties["has_open_jobs"] = "false"
@@ -264,9 +295,9 @@ class ClayIntegrationNode(PythonNode):
             # Process funding
             if funding:
                 latest_funding = funding[0]
-                properties["latest_funding_amount"] = str(latest_funding.get("amount", 0))
-                properties["latest_funding_date"] = latest_funding.get("date", "")
-                properties["latest_funding_round"] = latest_funding.get("round_type", "")
+                properties["recent_funding_amount"] = str(latest_funding.get("amount", 0))
+                properties["recent_funding_date"] = latest_funding.get("date", "")
+                properties["recent_funding_round"] = latest_funding.get("round_type", "")
                 properties["funding"] = "true"
                 
                 # Calculate total funding
@@ -277,15 +308,21 @@ class ClayIntegrationNode(PythonNode):
             
             # Process profile data
             if profile:
-                properties["employee_count"] = str(profile.get("employee_count", 0))
-                properties["industry"] = profile.get("industry", "")
-                properties["description"] = profile.get("description", "")[:1000]  # HubSpot has character limits
-                properties["year_founded"] = str(profile.get("year_founded", ""))
-                properties["linkedin_url"] = profile.get("linkedin_url", "")
-                properties["twitter_url"] = profile.get("twitter_url", "")
+                if "employee_count" in profile:
+                    properties["numberofemployees"] = str(profile.get("employee_count", 0))
+                if "industry" in profile:
+                    properties["industry"] = profile.get("industry", "")
+                if "description" in profile:
+                    properties["description"] = profile.get("description", "")[:1000]  # HubSpot has character limits
+                if "year_founded" in profile:
+                    properties["year_founded"] = str(profile.get("year_founded", ""))
+                if "linkedin_url" in profile:
+                    properties["linkedin_company_page"] = profile.get("linkedin_url", "")
+                if "twitter_url" in profile:
+                    properties["twitterhandle"] = profile.get("twitter_url", "")
             
             # Add metadata
-            properties["clay_last_updated"] = datetime.now().isoformat()
+            properties["last_clay_update"] = datetime.now().isoformat()
             
             # Update the company in HubSpot
             success = self.update_hubspot_company(hubspot_company["id"], properties)
