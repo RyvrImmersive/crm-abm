@@ -29,9 +29,13 @@ class HubSpotCompany(BaseModel):
     updatedAt: Optional[str] = None
 
 class HubSpotCompanyResponse(BaseModel):
-    results: List[HubSpotCompany]
+    results: List[HubSpotCompany] = []
     total: int = 0
     offset: int = 0
+    
+    class Config:
+        # Allow extra fields in the response
+        extra = "allow"
 
 def get_hubspot_api_key():
     """Get the HubSpot API key from environment variables."""
@@ -47,7 +51,7 @@ def get_clay_integration():
     api_key = get_hubspot_api_key()
     return ClayIntegrationNode(hubspot_api_key=api_key)
 
-@router.get("/companies", response_model=HubSpotCompanyResponse)
+@router.get("/companies")
 async def get_companies(
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -95,6 +99,9 @@ async def get_companies(
         data = response.json()
         logger.info(f"Successfully retrieved {len(data.get('results', []))} companies from HubSpot")
         
+        # Log the raw response for debugging
+        logger.debug(f"Raw HubSpot response: {data}")
+        
         # Ensure the response matches our expected model
         formatted_response = {
             "results": data.get('results', []),
@@ -102,7 +109,8 @@ async def get_companies(
             "offset": offset
         }
         
-        return formatted_response
+        # Return the raw response for now to avoid Pydantic validation issues
+        return data
         
     except requests.RequestException as e:
         logger.error(f"Error fetching companies from HubSpot: {str(e)}")
