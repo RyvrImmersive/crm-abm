@@ -72,7 +72,8 @@ const Companies = () => {
     size: '',
     scoreRange: [0, 100],
     hasScore: false,
-    hasRecentUpdate: false
+    hasRecentUpdate: false,
+    relationshipStatus: ''
   });
   
   // Sort state
@@ -81,11 +82,14 @@ const Companies = () => {
     direction: 'asc'
   });
 
-  // Fetch companies from HubSpot
+  // Initialize and fetch companies
   useEffect(() => {
-    const fetchCompanies = async () => {
+    const initialize = async () => {
       try {
         setLoading(true);
+        // Create relationship status property in HubSpot if it doesn't exist
+        await createRelationshipStatusProperty();
+        
         // Get all companies for initial load
         const response = await hubspotApi.getCompanies(100, 0);
         console.log('HubSpot API response:', response.data);
@@ -100,26 +104,27 @@ const Companies = () => {
           console.error('Unexpected response format:', response.data);
         }
         
-        // Enhance companies with score data if available
+        // Enhance companies with score data and relationship status if available
         const enhancedCompanies = companiesData.map(company => ({
           ...company,
           score: {
             value: company.properties?.clay_score || null,
             lastUpdated: company.properties?.last_clay_update || null
-          }
+          },
+          relationshipStatus: company.properties?.relationship_status || null
         }));
         
         setCompanies(enhancedCompanies);
       } catch (error) {
-        console.error('Error fetching companies:', error);
+        console.error('Error initializing:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCompanies();
+    initialize();
   }, []);
-  
+
   // Apply filters and sorting
   useEffect(() => {
     if (companies.length === 0) return;
@@ -142,6 +147,13 @@ const Companies = () => {
     if (filters.industry) {
       result = result.filter(company => 
         company.properties?.industry === filters.industry
+      );
+    }
+    
+    // Apply relationship status filter
+    if (filters.relationshipStatus) {
+      result = result.filter(company => 
+        company.relationshipStatus === filters.relationshipStatus
       );
     }
     
@@ -226,6 +238,17 @@ const Companies = () => {
     setFilteredCompanies(result);
   }, [companies, searchQuery, filters, sortConfig]);
 
+  // Define relationship status options
+  const relationshipStatusOptions = [
+    { value: "Current Customer", label: "Current Customer", color: "success" },
+    { value: "Sales Prospect", label: "Sales Prospect", color: "primary" },
+    { value: "Marketing Prospect", label: "Marketing Prospect", color: "info" },
+    { value: "Do Not Call", label: "Do Not Call", color: "error" },
+    { value: "Current Opportunity", label: "Current Opportunity", color: "warning" },
+    { value: "Competition", label: "Competition", color: "secondary" },
+    { value: "Influencer", label: "Influencer", color: "default" },
+  ];
+
   // Handle search input change
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
@@ -285,7 +308,8 @@ const Companies = () => {
       size: '',
       scoreRange: [0, 100],
       hasScore: false,
-      hasRecentUpdate: false
+      hasRecentUpdate: false,
+      relationshipStatus: ''
     });
     setSearchQuery('');
     setSortConfig({
@@ -312,12 +336,52 @@ const Companies = () => {
         score: {
           value: company.properties?.clay_score || null,
           lastUpdated: company.properties?.last_clay_update || null
-        }
+        },
+        relationshipStatus: company.properties?.relationship_status || null
       }));
       
       setCompanies(enhancedCompanies);
     } catch (error) {
       console.error('Error refreshing companies:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Create relationship status property in HubSpot
+  const createRelationshipStatusProperty = async () => {
+    try {
+      const response = await hubspotApi.createRelationshipStatusProperty();
+      console.log('Relationship status property created:', response.data);
+    } catch (error) {
+      console.error('Error creating relationship status property:', error);
+    }
+  };
+  
+  // Update relationship status for a company
+  const updateRelationshipStatus = async (companyId, status) => {
+    try {
+      setLoading(true);
+      const response = await hubspotApi.updateRelationshipStatus(companyId, status);
+      console.log('Relationship status updated:', response.data);
+      
+      // Update the local state
+      setCompanies(companies.map(company => {
+        if (company.id === companyId) {
+          return {
+            ...company,
+            relationshipStatus: status,
+            properties: {
+              ...company.properties,
+              relationship_status: status
+            }
+          };
+        }
+        return company;
+      }));
+      
+    } catch (error) {
+      console.error('Error updating relationship status:', error);
     } finally {
       setLoading(false);
     }
@@ -453,7 +517,7 @@ const Companies = () => {
               <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
                 <Grid container spacing={2}>
                   {/* Industry Filter */}
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <FormControl fullWidth>
                       <InputLabel>Industry</InputLabel>
                       <Select
@@ -464,6 +528,31 @@ const Companies = () => {
                         <MenuItem value="">All Industries</MenuItem>
                         {getUniqueIndustries().map(industry => (
                           <MenuItem key={industry} value={industry}>{industry}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  
+                  {/* Relationship Status Filter */}
+                  <Grid item xs={12} md={3}>
+                    <FormControl fullWidth>
+                      <InputLabel>Relationship Status</InputLabel>
+                      <Select
+                        value={filters.relationshipStatus}
+                        onChange={(e) => handleFilterChange('relationshipStatus', e.target.value)}
+                        label="Relationship Status"
+                      >
+                        <MenuItem value="">All Statuses</MenuItem>
+                        {relationshipStatusOptions.map(option => (
+                          <MenuItem key={option.value} value={option.value}>
+                            <Chip 
+                              label={option.label} 
+                              size="small" 
+                              color={option.color}
+                              sx={{ mr: 1 }}
+                            />
+                            {option.label}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -629,6 +718,7 @@ const Companies = () => {
                       )}
                     </Box>
                   </TableCell>
+                  <TableCell>Relationship Status</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -660,6 +750,44 @@ const Companies = () => {
                       <TableCell>
                         {company.score.lastUpdated ? 
                           new Date(company.score.lastUpdated).toLocaleDateString() : 'Never'}
+                      </TableCell>
+                      <TableCell>
+                        <FormControl size="small" fullWidth>
+                          <Select
+                            value={company.relationshipStatus || ''}
+                            onChange={(e) => updateRelationshipStatus(company.id, e.target.value)}
+                            displayEmpty
+                            sx={{ minWidth: 180 }}
+                            renderValue={(selected) => {
+                              if (!selected) {
+                                return <em>Set Status</em>;
+                              }
+                              const option = relationshipStatusOptions.find(opt => opt.value === selected);
+                              return (
+                                <Chip 
+                                  label={selected} 
+                                  size="small" 
+                                  color={option?.color || 'default'}
+                                />
+                              );
+                            }}
+                          >
+                            <MenuItem value="">
+                              <em>None</em>
+                            </MenuItem>
+                            {relationshipStatusOptions.map((option) => (
+                              <MenuItem key={option.value} value={option.value}>
+                                <Chip 
+                                  label={option.label} 
+                                  size="small" 
+                                  color={option.color}
+                                  sx={{ mr: 1 }}
+                                />
+                                {option.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
                       </TableCell>
                       <TableCell>
                         <Button 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import requests
@@ -6,8 +6,19 @@ import os
 import logging
 import json
 from ..components.clay_integration import ClayIntegrationNode
+from enum import Enum
 
-router = APIRouter()
+# Define relationship status options
+class RelationshipStatus(str, Enum):
+    CURRENT_CUSTOMER = "Current Customer"
+    SALES_PROSPECT = "Sales Prospect"
+    MARKETING_PROSPECT = "Marketing Prospect"
+    DO_NOT_CALL = "Do Not Call"
+    CURRENT_OPPORTUNITY = "Current Opportunity"
+    COMPETITION = "Competition"
+    INFLUENCER = "Influencer"
+
+router = APIRouter(prefix="/hubspot", tags=["hubspot"])
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -198,3 +209,82 @@ async def get_properties(
     except requests.RequestException as e:
         logger.error(f"Error fetching properties from HubSpot: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching properties from HubSpot: {str(e)}")
+
+@router.post("/properties/create-relationship-status")
+async def create_relationship_status_property(
+    api_key: str = Depends(get_hubspot_api_key)
+):
+    """Create a relationship status property in HubSpot if it doesn't exist."""
+    try:
+        # First check if the property already exists
+        properties = await get_properties(api_key)
+        
+        # Check if relationship_status property already exists
+        if any(prop.get('name') == 'relationship_status' for prop in properties):
+            return {"status": "exists", "message": "Relationship status property already exists"}
+        
+        # Property doesn't exist, create it
+        url = "https://api.hubapi.com/properties/v1/companies/properties"
+        
+        # Define the property
+        property_data = {
+            "name": "relationship_status",
+            "label": "Relationship Status",
+            "description": "The current relationship status with this company",
+            "groupName": "companyinformation",
+            "type": "enumeration",
+            "fieldType": "select",
+            "options": [
+                {"label": status.value, "value": status.value, "displayOrder": i} 
+                for i, status in enumerate(RelationshipStatus)
+            ]
+        }
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(url, json=property_data, headers=headers)
+        response.raise_for_status()
+        
+        return {"status": "created", "message": "Relationship status property created successfully"}
+    except requests.RequestException as e:
+        logger.error(f"Error creating relationship status property: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating relationship status property: {str(e)}")
+
+class UpdateRelationshipStatusRequest(BaseModel):
+    company_id: str
+    status: RelationshipStatus
+
+@router.post("/companies/update-relationship-status")
+async def update_relationship_status(
+    request: UpdateRelationshipStatusRequest,
+    api_key: str = Depends(get_hubspot_api_key)
+):
+    """Update the relationship status for a company."""
+    try:
+        # Ensure the property exists
+        await create_relationship_status_property(api_key)
+        
+        # Update the company property
+        url = f"https://api.hubapi.com/crm/v3/objects/companies/{request.company_id}"
+        
+        payload = {
+            "properties": {
+                "relationship_status": request.status.value
+            }
+        }
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.patch(url, json=payload, headers=headers)
+        response.raise_for_status()
+        
+        return {"status": "updated", "message": f"Relationship status updated to {request.status.value}"}
+    except requests.RequestException as e:
+        logger.error(f"Error updating relationship status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating relationship status: {str(e)}")

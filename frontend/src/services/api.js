@@ -97,20 +97,26 @@ export const schedulerApi = {
 
 // HubSpot API endpoints
 export const hubspotApi = {
-  // Get companies from HubSpot
-  getCompanies: (limit = 10, offset = 0) => {
-    return api.get(`/hubspot/companies?limit=${limit}&offset=${offset}`);
-  },
+  // Get companies
+  getCompanies: (limit = 10, offset = 0) => api.get(`/hubspot/companies?limit=${limit}&offset=${offset}`),
   
-  // Get a specific company from HubSpot
-  getCompany: (companyId) => {
-    return api.get(`/hubspot/companies/${companyId}`);
-  },
+  // Get a specific company
+  getCompany: (id) => api.get(`/hubspot/companies/${id}`),
   
-  // Search for companies in HubSpot
-  searchCompanies: (query) => {
-    return api.get(`/hubspot/companies/search?query=${query}`);
-  }
+  // Search companies
+  searchCompanies: (query) => api.get(`/hubspot/companies/search?query=${query}`),
+  
+  // Get company properties
+  getProperties: () => api.get('/hubspot/properties'),
+  
+  // Create relationship status property
+  createRelationshipStatusProperty: () => api.post('/hubspot/properties/create-relationship-status'),
+  
+  // Update relationship status for a company
+  updateRelationshipStatus: (companyId, status) => api.post('/hubspot/companies/update-relationship-status', {
+    company_id: companyId,
+    status: status
+  }),
 };
 
 export default api;
