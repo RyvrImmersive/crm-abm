@@ -33,6 +33,43 @@ async def test_endpoint():
     """Test endpoint to verify the router is working."""
     return {"status": "ok", "message": "HubSpot endpoints are working"}
 
+@router.get("/test-api-key")
+async def test_api_key(api_key: str = Depends(get_hubspot_api_key)):
+    """Test endpoint to verify the HubSpot API key is working."""
+    try:
+        # Make a simple API call to verify the key works
+        url = "https://api.hubapi.com/crm/v3/properties/companies"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            return {
+                "status": "ok", 
+                "message": "HubSpot API key is valid",
+                "data": {
+                    "status_code": response.status_code,
+                    "response_sample": str(response.text)[:100] + "..."
+                }
+            }
+        else:
+            return {
+                "status": "error", 
+                "message": "HubSpot API key is not working",
+                "data": {
+                    "status_code": response.status_code,
+                    "error": response.text
+                }
+            }
+    except Exception as e:
+        return {
+            "status": "error", 
+            "message": f"Error testing HubSpot API key: {str(e)}"
+        }
+
 class HubSpotCompany(BaseModel):
     id: str
     properties: Dict[str, Any]
@@ -54,7 +91,14 @@ def get_hubspot_api_key():
     if not api_key:
         logger.error("HUBSPOT_API_KEY not set in environment variables")
         raise HTTPException(status_code=500, detail="HUBSPOT_API_KEY not set in environment variables")
-    logger.info("HubSpot API key retrieved successfully")
+    
+    # Log a masked version of the API key for debugging (only show first 4 and last 4 chars)
+    if len(api_key) > 10:
+        masked_key = api_key[:4] + '*' * (len(api_key) - 8) + api_key[-4:]
+    else:
+        masked_key = '****'
+    logger.info(f"HubSpot API key retrieved successfully: {masked_key}")
+    
     return api_key
 
 def get_clay_integration():
@@ -100,8 +144,14 @@ async def get_companies(
                 elif 'detail' in error_data:
                     error_detail = error_data['detail']
                 logger.error(f"HubSpot API error: {error_detail}")
-            except Exception:
+            except Exception as e:
                 logger.error(f"HubSpot API returned non-JSON error response: {response.text}")
+                logger.error(f"Exception parsing error response: {str(e)}")
+            
+            # Log additional information about the request
+            logger.error(f"HubSpot API request failed - URL: {url}, Status: {response.status_code}")
+            logger.error(f"Request params: {params}")
+            logger.error(f"Request headers (auth masked): {{'Authorization': 'Bearer ****', 'Content-Type': headers['Content-Type']}}")
             
             raise HTTPException(status_code=response.status_code, 
                               detail=f"HubSpot API error: {error_detail}")

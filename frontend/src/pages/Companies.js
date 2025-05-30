@@ -120,38 +120,25 @@ const Companies = () => {
         
         console.log('Companies data extracted:', companiesData.length);
         
-        // Try to fetch more companies if we didn't get enough
-        if (companiesData.length < 5) {
-          try {
-            console.log('Fetching more companies directly from HubSpot API...');
-            // Try a direct API call with a different approach
-            const moreResponse = await hubspotApi.getProperties();
-            console.log('Properties response:', moreResponse.data);
-            
-            // Fetch some companies using search
-            const searchResponse = await hubspotApi.searchCompanies('a');
-            console.log('Search response:', searchResponse.data);
-            
-            if (searchResponse.data && searchResponse.data.results && searchResponse.data.results.length > 0) {
-              companiesData = searchResponse.data.results;
-              console.log('Using search results instead:', companiesData.length);
-            }
-          } catch (fetchError) {
-            console.error('Error fetching additional companies:', fetchError);
-          }
-        }
+        // Log detailed information about the API response for debugging
+        console.log('Full HubSpot API response details:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          config: response.config
+        });
         
-        // Only use dummy data if we absolutely couldn't get any companies
+        // Don't use dummy data anymore - we need to fix the actual API connection
         if (companiesData.length === 0) {
-          console.warn('No companies found in any response, using dummy data');
-          // For testing, create some dummy data
-          companiesData = [
-            { id: '1', properties: { name: 'Example Corp', domain: 'example.com', industry: 'Technology' } },
-            { id: '2', properties: { name: 'Test Inc', domain: 'test.com', industry: 'Finance' } },
-            { id: '3', properties: { name: 'Acme Ltd', domain: 'acme.com', industry: 'Manufacturing' } },
-            { id: '4', properties: { name: 'Global Services', domain: 'globalservices.com', industry: 'Services' } },
-            { id: '5', properties: { name: 'Tech Solutions', domain: 'techsolutions.com', industry: 'Technology' } }
-          ];
+          console.error('No companies found in the HubSpot API response');
+          console.error('This likely indicates an issue with the HubSpot API key or connection');
+          console.error('Please check the HUBSPOT_API_KEY in your .env file');
+          
+          // Instead of showing dummy data, show an error message
+          setMessage({
+            type: 'error',
+            text: 'Could not fetch companies from HubSpot. Please check your API key and connection.'
+          });
         }
         
         // Enhance companies with score data and relationship status if available
