@@ -140,8 +140,23 @@ const Companies = () => {
         console.log('Enhanced companies:', enhancedCompanies);
         setCompanies(enhancedCompanies);
         setFilteredCompanies(enhancedCompanies); // Explicitly set filtered companies
+        
+        // Save companies to localStorage for persistence across page navigations
+        localStorage.setItem('hubspot_companies', JSON.stringify(enhancedCompanies));
       } catch (error) {
         console.error('Error initializing:', error);
+        // Try to load from localStorage if API fails
+        const savedCompanies = localStorage.getItem('hubspot_companies');
+        if (savedCompanies) {
+          try {
+            const parsedCompanies = JSON.parse(savedCompanies);
+            setCompanies(parsedCompanies);
+            setFilteredCompanies(parsedCompanies);
+            console.log('Loaded companies from localStorage:', parsedCompanies);
+          } catch (e) {
+            console.error('Error parsing saved companies:', e);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -166,9 +181,9 @@ const Companies = () => {
       const query = searchQuery.toLowerCase();
       result = result.filter(company => {
         return (
-          company.properties?.name?.toLowerCase().includes(query) ||
-          company.properties?.domain?.toLowerCase().includes(query) ||
-          company.properties?.industry?.toLowerCase().includes(query)
+          (company.properties?.name || '').toLowerCase().includes(query) ||
+          (company.properties?.domain || '').toLowerCase().includes(query) ||
+          (company.properties?.industry || '').toLowerCase().includes(query)
         );
       });
     }
@@ -378,25 +393,91 @@ const Companies = () => {
     }
   };
   
-  // Create relationship status property in HubSpot
+  // Check for relationship status on mount and create if needed
   const createRelationshipStatusProperty = async () => {
     try {
       const response = await hubspotApi.createRelationshipStatusProperty();
-      console.log('Relationship status property created:', response.data);
+      console.log('Relationship status property check:', response.data);
+      return response.data;
     } catch (error) {
-      console.error('Error creating relationship status property:', error);
+      console.error('Error checking/creating relationship status property:', error);
+      throw error;
     }
   };
   
+  // Helper function to apply all filters to a company
+  const applyFilters = (company) => {
+    // If no filters are active, return true
+    if (!filters.industry && !filters.size && !filters.hasScore && 
+        !filters.hasRecentUpdate && !filters.relationshipStatus && 
+        filters.scoreRange[0] === 0 && filters.scoreRange[1] === 100) {
+      return true;
+    }
+    
+    // Apply industry filter
+    if (filters.industry && company.properties?.industry !== filters.industry) {
+      return false;
+    }
+    
+    // Apply size filter
+    if (filters.size) {
+      const employeeCount = parseInt(company.properties?.numberofemployees) || 0;
+      if (filters.size === 'small' && employeeCount > 50) return false;
+      if (filters.size === 'medium' && (employeeCount <= 50 || employeeCount > 500)) return false;
+      if (filters.size === 'large' && employeeCount <= 500) return false;
+    }
+    
+    // Apply score filter
+    if (filters.hasScore && !company.score?.value) {
+      return false;
+    }
+    
+    // Apply recent update filter
+    if (filters.hasRecentUpdate && !company.score?.lastUpdated) {
+      return false;
+    }
+    
+    // Apply relationship status filter
+    if (filters.relationshipStatus && company.relationshipStatus !== filters.relationshipStatus) {
+      return false;
+    }
+    
+    // Apply score range filter
+    if (company.score?.value) {
+      const score = parseFloat(company.score.value) * 100;
+      if (score < filters.scoreRange[0] || score > filters.scoreRange[1]) {
+        return false;
+      }
+    }
+    
+    return true;
+  };
+  
+  // Load companies from localStorage when component mounts
+  useEffect(() => {
+    const savedCompanies = localStorage.getItem('hubspot_companies');
+    if (savedCompanies && companies.length === 0 && !loading) {
+      try {
+        const parsedCompanies = JSON.parse(savedCompanies);
+        if (parsedCompanies && parsedCompanies.length > 0) {
+          setCompanies(parsedCompanies);
+          setFilteredCompanies(parsedCompanies);
+          console.log('Loaded companies from localStorage on mount:', parsedCompanies);
+        }
+      } catch (e) {
+        console.error('Error parsing saved companies on mount:', e);
+      }
+    }
+  }, []);
+
   // Update relationship status for a company
   const updateRelationshipStatus = async (companyId, status) => {
     try {
       setLoading(true);
-      const response = await hubspotApi.updateRelationshipStatus(companyId, status);
-      console.log('Relationship status updated:', response.data);
+      await hubspotApi.updateRelationshipStatus(companyId, status);
       
       // Update the local state
-      setCompanies(companies.map(company => {
+      const updatedCompanies = companies.map(company => {
         if (company.id === companyId) {
           return {
             ...company,
@@ -408,10 +489,19 @@ const Companies = () => {
           };
         }
         return company;
-      }));
+      });
       
+      setCompanies(updatedCompanies);
+      setFilteredCompanies(updatedCompanies.filter(company => applyFilters(company)));
+      
+      // Update localStorage to persist changes
+      localStorage.setItem('hubspot_companies', JSON.stringify(updatedCompanies));
+      
+      // Show success message
+      alert(`Relationship status updated to ${status}`);
     } catch (error) {
       console.error('Error updating relationship status:', error);
+      alert('Error updating relationship status');
     } finally {
       setLoading(false);
     }
