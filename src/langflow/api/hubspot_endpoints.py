@@ -145,9 +145,12 @@ async def get_companies(
         data = response.json()
         logger.info(f"Successfully retrieved {len(data.get('results', []))} companies from HubSpot")
         
-        # Return the raw response data directly
-        # This is what worked before our changes
-        return data
+        # Log the raw response structure
+        logger.info(f"Response structure: {str(data)[:200]}...")
+        
+        # Return the raw response data directly without any modifications
+        # This ensures we're getting exactly what the HubSpot API returns
+        return response.json()
         
     except requests.RequestException as e:
         logger.error(f"Error fetching companies from HubSpot: {str(e)}")

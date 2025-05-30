@@ -104,6 +104,10 @@ const Companies = () => {
         // Extract companies data with detailed logging
         let companiesData = [];
         
+        // Log the full response structure for debugging
+        console.log('Response structure:', JSON.stringify(response).substring(0, 500) + '...');
+        
+        // Try all possible ways to extract companies data
         if (response.data && response.data.results && Array.isArray(response.data.results)) {
           // Standard HubSpot API response format
           companiesData = response.data.results;
@@ -112,15 +116,31 @@ const Companies = () => {
           // Alternative format - direct array
           companiesData = response.data;
           console.log('Response data is a direct array:', companiesData.length);
-        } else if (response.data) {
+        } else if (typeof response.data === 'object' && response.data !== null) {
           // Try to extract companies from any object structure
-          console.log('Examining response data format:', typeof response.data);
-          console.log('Response data keys:', Object.keys(response.data));
+          console.log('Response data type:', typeof response.data);
           
-          // Check if response.data has a 'results' property that might be nested
           if (response.data.results) {
+            // Has results property
             companiesData = Array.isArray(response.data.results) ? response.data.results : [response.data.results];
-            console.log('Extracted results from response:', companiesData.length);
+            console.log('Extracted from results property:', companiesData.length);
+          } else {
+            // Try to find any array in the response that might contain companies
+            const keys = Object.keys(response.data);
+            console.log('Response data keys:', keys);
+            
+            // Look for properties that might contain company data
+            for (const key of keys) {
+              if (Array.isArray(response.data[key]) && response.data[key].length > 0) {
+                // Check if array items have properties like 'id' or 'properties' that suggest they're companies
+                const firstItem = response.data[key][0];
+                if (firstItem && (firstItem.id || firstItem.properties)) {
+                  companiesData = response.data[key];
+                  console.log(`Found companies in '${key}' property:`, companiesData.length);
+                  break;
+                }
+              }
+            }
           }
         }
         
