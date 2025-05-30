@@ -148,7 +148,7 @@ const Companies = () => {
     // Apply size filter
     if (filters.size) {
       result = result.filter(company => {
-        const size = parseInt(company.properties?.numberofemployees || '0', 10);
+        const size = Number(company.properties?.numberofemployees || 0);
         switch(filters.size) {
           case 'small': return size > 0 && size < 50;
           case 'medium': return size >= 50 && size < 200;
@@ -165,7 +165,7 @@ const Companies = () => {
     
     if (filters.scoreRange[0] > 0 || filters.scoreRange[1] < 100) {
       result = result.filter(company => {
-        const score = parseInt(company.score.value || '0', 10);
+        const score = Number(company.score.value || 0);
         return score >= filters.scoreRange[0] && score <= filters.scoreRange[1];
       });
     }
@@ -200,12 +200,12 @@ const Companies = () => {
           bValue = b.properties?.industry || '';
           break;
         case 'size':
-          aValue = parseInt(a.properties?.numberofemployees || '0', 10);
-          bValue = parseInt(b.properties?.numberofemployees || '0', 10);
+          aValue = Number(a.properties?.numberofemployees || 0);
+          bValue = Number(b.properties?.numberofemployees || 0);
           break;
         case 'score':
-          aValue = parseInt(a.score.value || '0', 10);
-          bValue = parseInt(b.score.value || '0', 10);
+          aValue = Number(a.score.value || 0);
+          bValue = Number(b.score.value || 0);
           break;
         case 'lastUpdated':
           aValue = a.score.lastUpdated ? new Date(a.score.lastUpdated) : new Date(0);
@@ -260,7 +260,7 @@ const Companies = () => {
   
   // Handle rows per page change
   const handleRowsPerPageChange = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    setRowsPerPage(Number(event.target.value || 10));
     setPage(1);
   };
   
@@ -651,8 +651,8 @@ const Companies = () => {
                         {company.score.value ? (
                           <Chip 
                             label={company.score.value} 
-                            color={parseInt(company.score.value || '0', 10) > 70 ? "success" : 
-                                  parseInt(company.score.value || '0', 10) > 40 ? "warning" : "error"}
+                            color={Number(company.score.value || 0) > 70 ? "success" : 
+                                  Number(company.score.value || 0) > 40 ? "warning" : "error"}
                             sx={{ fontWeight: 'bold' }}
                           />
                         ) : 'N/A'}
