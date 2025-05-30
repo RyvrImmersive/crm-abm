@@ -30,8 +30,8 @@ class HubSpotCompany(BaseModel):
 
 class HubSpotCompanyResponse(BaseModel):
     results: List[HubSpotCompany]
-    total: int
-    offset: int
+    total: int = 0
+    offset: int = 0
 
 def get_hubspot_api_key():
     """Get the HubSpot API key from environment variables."""
@@ -94,7 +94,15 @@ async def get_companies(
         # Process successful response
         data = response.json()
         logger.info(f"Successfully retrieved {len(data.get('results', []))} companies from HubSpot")
-        return data
+        
+        # Ensure the response matches our expected model
+        formatted_response = {
+            "results": data.get('results', []),
+            "total": data.get('total', 0),
+            "offset": offset
+        }
+        
+        return formatted_response
         
     except requests.RequestException as e:
         logger.error(f"Error fetching companies from HubSpot: {str(e)}")
