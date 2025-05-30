@@ -18,7 +18,8 @@ import {
   Alert,
   Divider,
   Tooltip,
-  IconButton
+  IconButton,
+  Chip
 } from '@mui/material';
 import { scoringApi } from '../services/api';
 import InfoIcon from '@mui/icons-material/Info';
@@ -366,7 +367,7 @@ const ModelTweaking = () => {
             <Divider sx={{ my: 2 }} />
             
             {/* Test Results */}
-            {testResult ? (
+            {testResult && testResult.crm_score ? (
               <Box>
                 <Typography variant="subtitle2" gutterBottom>
                   Test Results
@@ -382,7 +383,7 @@ const ModelTweaking = () => {
                   </CardContent>
                 </Card>
                 
-                {testResult.components && testResult.components.signals && (
+                {testResult && testResult.components && testResult.components.signals && Array.isArray(testResult.components.signals) && (
                   <Box>
                     <Typography variant="subtitle2" gutterBottom>
                       Signals Detected

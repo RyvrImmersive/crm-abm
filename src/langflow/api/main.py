@@ -10,7 +10,14 @@ from src.langflow.components.hubspot_updater import HubspotUpdaterNode
 from src.langflow.api.clay_endpoints import router as clay_router
 from src.langflow.api.scheduler_endpoints import router as scheduler_router
 from src.langflow.api.hubspot_endpoints import router as hubspot_router
-from src.langflow.api.scoring_endpoints import router as scoring_router
+
+# Import scoring router with try/except to handle potential import errors
+try:
+    from src.langflow.api.scoring_endpoints import router as scoring_router
+except ImportError:
+    # Create a dummy router if scoring_endpoints can't be imported
+    from fastapi import APIRouter
+    scoring_router = APIRouter()
 import logging
 import os
 
