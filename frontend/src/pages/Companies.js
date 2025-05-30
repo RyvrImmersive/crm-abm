@@ -19,12 +19,33 @@ import {
   DialogContent,
   DialogActions,
   Tabs,
-  Tab
+  Tab,
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Pagination,
+  Tooltip,
+  IconButton,
+  InputAdornment,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
+  Slider,
+  Divider
 } from '@mui/material';
 import { hubspotApi, clayApi } from '../services/api';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import SortIcon from '@mui/icons-material/Sort';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import InfoIcon from '@mui/icons-material/Info';
 
 const Companies = () => {
+  // Main state
   const [companies, setCompanies] = useState([]);
+  const [filteredCompanies, setFilteredCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -34,27 +55,61 @@ const Companies = () => {
     funding: [],
     profile: {}
   });
+  
+  // UI state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Filter state
+  const [filters, setFilters] = useState({
+    industry: '',
+    size: '',
+    scoreRange: [0, 100],
+    hasScore: false,
+    hasRecentUpdate: false
+  });
+  
+  // Sort state
+  const [sortConfig, setSortConfig] = useState({
+    key: 'name',
+    direction: 'asc'
+  });
 
   // Fetch companies from HubSpot
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
         setLoading(true);
-        const response = await hubspotApi.getCompanies(50, 0);
+        // Get all companies for initial load
+        const response = await hubspotApi.getCompanies(100, 0);
         console.log('HubSpot API response:', response.data);
         
         // Handle different response formats
+        let companiesData = [];
         if (response.data && response.data.results) {
-          setCompanies(response.data.results);
+          companiesData = response.data.results;
         } else if (Array.isArray(response.data)) {
-          setCompanies(response.data);
+          companiesData = response.data;
         } else {
           console.error('Unexpected response format:', response.data);
-          setCompanies([]);
         }
+        
+        // Enhance companies with score data if available
+        const enhancedCompanies = companiesData.map(company => ({
+          ...company,
+          score: {
+            value: company.properties?.clay_score || null,
+            lastUpdated: company.properties?.last_clay_update || null
+          }
+        }));
+        
+        setCompanies(enhancedCompanies);
       } catch (error) {
         console.error('Error fetching companies:', error);
       } finally {
@@ -64,27 +119,205 @@ const Companies = () => {
 
     fetchCompanies();
   }, []);
-
-  // Handle search
-  const handleSearch = async () => {
-    if (!searchQuery) return;
+  
+  // Apply filters and sorting
+  useEffect(() => {
+    if (companies.length === 0) return;
     
+    let result = [...companies];
+    
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(company => {
+        return (
+          company.properties?.name?.toLowerCase().includes(query) ||
+          company.properties?.domain?.toLowerCase().includes(query) ||
+          company.properties?.industry?.toLowerCase().includes(query)
+        );
+      });
+    }
+    
+    // Apply industry filter
+    if (filters.industry) {
+      result = result.filter(company => 
+        company.properties?.industry === filters.industry
+      );
+    }
+    
+    // Apply size filter
+    if (filters.size) {
+      result = result.filter(company => {
+        const size = parseInt(company.properties?.numberofemployees || '0', 10);
+        switch(filters.size) {
+          case 'small': return size > 0 && size < 50;
+          case 'medium': return size >= 50 && size < 200;
+          case 'large': return size >= 200;
+          default: return true;
+        }
+      });
+    }
+    
+    // Apply score filters
+    if (filters.hasScore) {
+      result = result.filter(company => company.score.value !== null);
+    }
+    
+    if (filters.scoreRange[0] > 0 || filters.scoreRange[1] < 100) {
+      result = result.filter(company => {
+        const score = parseInt(company.score.value || '0', 10);
+        return score >= filters.scoreRange[0] && score <= filters.scoreRange[1];
+      });
+    }
+    
+    // Apply recent update filter
+    if (filters.hasRecentUpdate) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      result = result.filter(company => {
+        if (!company.score.lastUpdated) return false;
+        const updateDate = new Date(company.score.lastUpdated);
+        return updateDate > thirtyDaysAgo;
+      });
+    }
+    
+    // Apply sorting
+    result.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch(sortConfig.key) {
+        case 'name':
+          aValue = a.properties?.name || '';
+          bValue = b.properties?.name || '';
+          break;
+        case 'domain':
+          aValue = a.properties?.domain || '';
+          bValue = b.properties?.domain || '';
+          break;
+        case 'industry':
+          aValue = a.properties?.industry || '';
+          bValue = b.properties?.industry || '';
+          break;
+        case 'size':
+          aValue = parseInt(a.properties?.numberofemployees || '0', 10);
+          bValue = parseInt(b.properties?.numberofemployees || '0', 10);
+          break;
+        case 'score':
+          aValue = parseInt(a.score.value || '0', 10);
+          bValue = parseInt(b.score.value || '0', 10);
+          break;
+        case 'lastUpdated':
+          aValue = a.score.lastUpdated ? new Date(a.score.lastUpdated) : new Date(0);
+          bValue = b.score.lastUpdated ? new Date(b.score.lastUpdated) : new Date(0);
+          break;
+        default:
+          aValue = a.properties?.name || '';
+          bValue = b.properties?.name || '';
+      }
+      
+      if (sortConfig.direction === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+    
+    setFilteredCompanies(result);
+  }, [companies, searchQuery, filters, sortConfig]);
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+  
+  // Handle search submit
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    // The filtering is handled by the useEffect
+  };
+  
+  // Handle filter changes
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+  };
+  
+  // Handle sort changes
+  const handleSortChange = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+  
+  // Handle pagination change
+  const handlePageChange = (event, newPage) => {
+    setPage(newPage);
+  };
+  
+  // Handle rows per page change
+  const handleRowsPerPageChange = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(1);
+  };
+  
+  // Get unique industries for filter dropdown
+  const getUniqueIndustries = () => {
+    const industries = companies
+      .map(company => company.properties?.industry)
+      .filter(industry => industry);
+    return [...new Set(industries)];
+  };
+  
+  // Get paginated data
+  const getPaginatedData = () => {
+    const startIndex = (page - 1) * rowsPerPage;
+    return filteredCompanies.slice(startIndex, startIndex + rowsPerPage);
+  };
+  
+  // Reset filters
+  const resetFilters = () => {
+    setFilters({
+      industry: '',
+      size: '',
+      scoreRange: [0, 100],
+      hasScore: false,
+      hasRecentUpdate: false
+    });
+    setSearchQuery('');
+    setSortConfig({
+      key: 'name',
+      direction: 'asc'
+    });
+  };
+  
+  // Refresh companies data
+  const refreshCompanies = async () => {
     try {
       setLoading(true);
-      const response = await hubspotApi.searchCompanies(searchQuery);
-      console.log('Search response:', response.data);
+      const response = await hubspotApi.getCompanies(100, 0);
       
-      // Handle different response formats
+      let companiesData = [];
       if (response.data && response.data.results) {
-        setCompanies(response.data.results);
+        companiesData = response.data.results;
       } else if (Array.isArray(response.data)) {
-        setCompanies(response.data);
-      } else {
-        console.error('Unexpected search response format:', response.data);
-        setCompanies([]);
+        companiesData = response.data;
       }
+      
+      const enhancedCompanies = companiesData.map(company => ({
+        ...company,
+        score: {
+          value: company.properties?.clay_score || null,
+          lastUpdated: company.properties?.last_clay_update || null
+        }
+      }));
+      
+      setCompanies(enhancedCompanies);
     } catch (error) {
-      console.error('Error searching companies:', error);
+      console.error('Error refreshing companies:', error);
     } finally {
       setLoading(false);
     }
@@ -148,26 +381,172 @@ const Companies = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Companies
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">
+          Companies
+        </Typography>
+        <Box>
+          <Tooltip title="Refresh Companies Data">
+            <IconButton onClick={refreshCompanies} disabled={loading}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
       
-      {/* Search Bar */}
-      <Box sx={{ mb: 4, display: 'flex', alignItems: 'center' }}>
-        <TextField
-          label="Search Companies"
-          variant="outlined"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ mr: 2, flexGrow: 1 }}
-        />
-        <Button 
-          variant="contained" 
-          onClick={handleSearch}
-          disabled={loading || !searchQuery}
-        >
-          Search
-        </Button>
+      {/* Search and Filter Bar */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2}>
+          {/* Search */}
+          <Grid item xs={12} md={6}>
+            <form onSubmit={handleSearchSubmit}>
+              <TextField
+                fullWidth
+                label="Search Companies"
+                variant="outlined"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </form>
+          </Grid>
+          
+          {/* Filter Toggle */}
+          <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+              <Button 
+                variant={filtersOpen ? "contained" : "outlined"}
+                startIcon={<FilterListIcon />}
+                onClick={() => setFiltersOpen(!filtersOpen)}
+              >
+                Filters
+              </Button>
+              <Button 
+                variant="outlined"
+                startIcon={<SortIcon />}
+                onClick={() => handleSortChange('name')}
+              >
+                Sort
+              </Button>
+              {(filters.industry || filters.size || filters.hasScore || filters.hasRecentUpdate || 
+                filters.scoreRange[0] > 0 || filters.scoreRange[1] < 100) && (
+                <Button 
+                  variant="outlined" 
+                  color="error"
+                  onClick={resetFilters}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </Box>
+          </Grid>
+          
+          {/* Expanded Filters */}
+          {filtersOpen && (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
+                <Grid container spacing={2}>
+                  {/* Industry Filter */}
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth>
+                      <InputLabel>Industry</InputLabel>
+                      <Select
+                        value={filters.industry}
+                        onChange={(e) => handleFilterChange('industry', e.target.value)}
+                        label="Industry"
+                      >
+                        <MenuItem value="">All Industries</MenuItem>
+                        {getUniqueIndustries().map(industry => (
+                          <MenuItem key={industry} value={industry}>{industry}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  
+                  {/* Size Filter */}
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth>
+                      <InputLabel>Company Size</InputLabel>
+                      <Select
+                        value={filters.size}
+                        onChange={(e) => handleFilterChange('size', e.target.value)}
+                        label="Company Size"
+                      >
+                        <MenuItem value="">All Sizes</MenuItem>
+                        <MenuItem value="small">Small (<50)</MenuItem>
+                        <MenuItem value="medium">Medium (50-199)</MenuItem>
+                        <MenuItem value="large">Large (200+)</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  
+                  {/* Score Range Filter */}
+                  <Grid item xs={12} md={4}>
+                    <Typography gutterBottom>Score Range</Typography>
+                    <Slider
+                      value={filters.scoreRange}
+                      onChange={(e, newValue) => handleFilterChange('scoreRange', newValue)}
+                      valueLabelDisplay="auto"
+                      min={0}
+                      max={100}
+                      disabled={!filters.hasScore}
+                    />
+                  </Grid>
+                  
+                  {/* Checkbox Filters */}
+                  <Grid item xs={12}>
+                    <FormGroup row>
+                      <FormControlLabel
+                        control={
+                          <Checkbox 
+                            checked={filters.hasScore} 
+                            onChange={(e) => handleFilterChange('hasScore', e.target.checked)}
+                          />
+                        }
+                        label="Has Score"
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox 
+                            checked={filters.hasRecentUpdate} 
+                            onChange={(e) => handleFilterChange('hasRecentUpdate', e.target.checked)}
+                          />
+                        }
+                        label="Updated in Last 30 Days"
+                      />
+                    </FormGroup>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          )}
+        </Grid>
+      </Paper>
+      
+      {/* Results Summary */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="body2">
+          Showing {filteredCompanies.length} of {companies.length} companies
+        </Typography>
+        <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Rows</InputLabel>
+          <Select
+            value={rowsPerPage}
+            onChange={handleRowsPerPageChange}
+            label="Rows"
+          >
+            <MenuItem value={5}>5</MenuItem>
+            <MenuItem value={10}>10</MenuItem>
+            <MenuItem value={25}>25</MenuItem>
+            <MenuItem value={50}>50</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
       
       {loading ? (
@@ -175,54 +554,157 @@ const Companies = () => {
           <CircularProgress />
         </Box>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Domain</TableCell>
-                <TableCell>Industry</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {companies.length > 0 ? (
-                companies.map((company) => (
-                  <TableRow key={company.id}>
-                    <TableCell>{company.properties?.name || 'N/A'}</TableCell>
-                    <TableCell>{company.properties?.domain || 'N/A'}</TableCell>
-                    <TableCell>{company.properties?.industry || 'N/A'}</TableCell>
-                    <TableCell>
-                      <Button 
-                        variant="outlined" 
-                        size="small"
-                        onClick={() => handleCompanyClick(company)}
-                        sx={{ mr: 1 }}
-                        disabled={!company.properties?.domain}
-                      >
-                        View
-                      </Button>
-                      <Button 
-                        variant="contained" 
-                        size="small"
-                        onClick={() => handleSyncToHubspot(company.properties?.domain)}
-                        disabled={!company.properties?.domain}
-                      >
-                        Sync
-                      </Button>
+        <>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell 
+                    onClick={() => handleSortChange('name')}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      Name
+                      {sortConfig.key === 'name' && (
+                        <SortIcon fontSize="small" sx={{ 
+                          ml: 0.5,
+                          transform: sortConfig.direction === 'desc' ? 'rotate(180deg)' : 'none'
+                        }} />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell 
+                    onClick={() => handleSortChange('domain')}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      Domain
+                      {sortConfig.key === 'domain' && (
+                        <SortIcon fontSize="small" sx={{ 
+                          ml: 0.5,
+                          transform: sortConfig.direction === 'desc' ? 'rotate(180deg)' : 'none'
+                        }} />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell 
+                    onClick={() => handleSortChange('industry')}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      Industry
+                      {sortConfig.key === 'industry' && (
+                        <SortIcon fontSize="small" sx={{ 
+                          ml: 0.5,
+                          transform: sortConfig.direction === 'desc' ? 'rotate(180deg)' : 'none'
+                        }} />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell 
+                    onClick={() => handleSortChange('score')}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      Score
+                      {sortConfig.key === 'score' && (
+                        <SortIcon fontSize="small" sx={{ 
+                          ml: 0.5,
+                          transform: sortConfig.direction === 'desc' ? 'rotate(180deg)' : 'none'
+                        }} />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell 
+                    onClick={() => handleSortChange('lastUpdated')}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      Last Updated
+                      {sortConfig.key === 'lastUpdated' && (
+                        <SortIcon fontSize="small" sx={{ 
+                          ml: 0.5,
+                          transform: sortConfig.direction === 'desc' ? 'rotate(180deg)' : 'none'
+                        }} />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {getPaginatedData().length > 0 ? (
+                  getPaginatedData().map((company) => (
+                    <TableRow key={company.id}>
+                      <TableCell>{company.properties?.name || 'N/A'}</TableCell>
+                      <TableCell>{company.properties?.domain || 'N/A'}</TableCell>
+                      <TableCell>
+                        {company.properties?.industry ? (
+                          <Chip 
+                            label={company.properties.industry} 
+                            size="small" 
+                            variant="outlined"
+                          />
+                        ) : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {company.score.value ? (
+                          <Chip 
+                            label={company.score.value} 
+                            color={parseInt(company.score.value || '0', 10) > 70 ? "success" : 
+                                  parseInt(company.score.value || '0', 10) > 40 ? "warning" : "error"}
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                        ) : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {company.score.lastUpdated ? 
+                          new Date(company.score.lastUpdated).toLocaleDateString() : 'Never'}
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="outlined" 
+                          size="small"
+                          onClick={() => handleCompanyClick(company)}
+                          sx={{ mr: 1 }}
+                          disabled={!company.properties?.domain}
+                        >
+                          View
+                        </Button>
+                        <Button 
+                          variant="contained" 
+                          size="small"
+                          onClick={() => handleSyncToHubspot(company.properties?.domain)}
+                          disabled={!company.properties?.domain}
+                        >
+                          Sync
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      No companies found
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} align="center">
-                    No companies found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          
+          {/* Pagination */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+            <Pagination 
+              count={Math.ceil(filteredCompanies.length / rowsPerPage)} 
+              page={page} 
+              onChange={handlePageChange} 
+              color="primary" 
+              showFirstButton 
+              showLastButton
+            />
+          </Box>
+        </>
       )}
       
       {/* Company Detail Dialog */}
