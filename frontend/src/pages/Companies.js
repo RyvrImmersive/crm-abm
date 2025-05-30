@@ -134,11 +134,19 @@ const Companies = () => {
           console.error('This likely indicates an issue with the HubSpot API key or connection');
           console.error('Please check the HUBSPOT_API_KEY in your .env file');
           
-          // Instead of showing dummy data, show an error message
-          setMessage({
-            type: 'error',
-            text: 'Could not fetch companies from HubSpot. Please check your API key and connection.'
-          });
+          // Instead of showing dummy data, we'll use a minimal set of dummy data
+          // This ensures the UI doesn't break while still indicating there's an issue
+          companiesData = [
+            { id: '1', properties: { name: 'No HubSpot Connection', domain: 'Please check API key', industry: 'Error' } }
+          ];
+          
+          // We'll also set an error message if we have access to the message state
+          if (typeof setMessage === 'function') {
+            setMessage({
+              type: 'error',
+              text: 'Could not fetch companies from HubSpot. Please check your API key and connection.'
+            });
+          }
         }
         
         // Enhance companies with score data and relationship status if available

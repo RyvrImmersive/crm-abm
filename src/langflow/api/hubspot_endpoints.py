@@ -47,21 +47,32 @@ async def test_api_key(api_key: str = Depends(get_hubspot_api_key)):
         response = requests.get(url, headers=headers)
         
         if response.status_code == 200:
+            # Limit the response sample to avoid any encoding issues
+            response_text = response.text
+            sample = response_text[:100] if response_text else ""
+            
             return {
                 "status": "ok", 
                 "message": "HubSpot API key is valid",
                 "data": {
                     "status_code": response.status_code,
-                    "response_sample": str(response.text)[:100] + "..."
+                    "response_sample": sample
                 }
             }
         else:
+            # Handle error response safely
+            error_text = ""
+            try:
+                error_text = response.text[:200] if response.text else ""
+            except:
+                error_text = "[Error text could not be extracted]"
+                
             return {
                 "status": "error", 
                 "message": "HubSpot API key is not working",
                 "data": {
                     "status_code": response.status_code,
-                    "error": response.text
+                    "error": error_text
                 }
             }
     except Exception as e:
