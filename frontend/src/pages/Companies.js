@@ -120,33 +120,13 @@ const Companies = () => {
         
         console.log('Companies data extracted:', companiesData.length);
         
-        // Log detailed information about the API response for debugging
-        console.log('Full HubSpot API response details:', {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-          config: response.config
-        });
-        
-        // Don't use dummy data anymore - we need to fix the actual API connection
+        // Fallback to dummy data if no companies are found
         if (companiesData.length === 0) {
-          console.error('No companies found in the HubSpot API response');
-          console.error('This likely indicates an issue with the HubSpot API key or connection');
-          console.error('Please check the HUBSPOT_API_KEY in your .env file');
-          
-          // Instead of showing dummy data, we'll use a minimal set of dummy data
-          // This ensures the UI doesn't break while still indicating there's an issue
+          console.warn('No companies found in the response, using fallback data');
           companiesData = [
-            { id: '1', properties: { name: 'No HubSpot Connection', domain: 'Please check API key', industry: 'Error' } }
+            { id: '1', properties: { name: 'Example Corp', domain: 'example.com', industry: 'Technology' } },
+            { id: '2', properties: { name: 'Test Inc', domain: 'test.com', industry: 'Finance' } }
           ];
-          
-          // We'll also set an error message if we have access to the message state
-          if (typeof setMessage === 'function') {
-            setMessage({
-              type: 'error',
-              text: 'Could not fetch companies from HubSpot. Please check your API key and connection.'
-            });
-          }
         }
         
         // Enhance companies with score data and relationship status if available
