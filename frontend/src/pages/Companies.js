@@ -46,7 +46,7 @@ const Companies = () => {
   // Main state
   const [companies, setCompanies] = useState([]);
   const [filteredCompanies, setFilteredCompanies] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [companyData, setCompanyData] = useState({
@@ -516,7 +516,7 @@ const Companies = () => {
   // Function to test the HubSpot API key
   const testApiKey = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       const response = await fetch(`${process.env.REACT_APP_API_URL}/hubspot/test-api-key`);
       const data = await response.json();
       
@@ -533,7 +533,7 @@ const Companies = () => {
       console.error('Error testing API key:', error);
       alert(`Error testing HubSpot API key: ${error.message}`);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -642,10 +642,10 @@ const Companies = () => {
             color="primary"
             size="small"
             onClick={testApiKey}
-            disabled={isLoading}
+            disabled={loading}
             sx={{ ml: 2 }}
           >
-            {isLoading ? 'Testing...' : 'Check API Key'}
+            {loading ? 'Testing...' : 'Check API Key'}
           </Button>
         </Box>
         <Box>
