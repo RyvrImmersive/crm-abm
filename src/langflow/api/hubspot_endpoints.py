@@ -4,12 +4,23 @@ from typing import List, Dict, Any, Optional
 import requests
 import os
 import logging
+import json
 from ..components.clay_integration import ClayIntegrationNode
 
 router = APIRouter()
 
 # Initialize logger
 logger = logging.getLogger(__name__)
+
+# Set up more detailed logging
+logging.basicConfig(level=logging.INFO,
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Add a simple test endpoint to verify the router is working
+@router.get("/test")
+async def test_endpoint():
+    """Test endpoint to verify the router is working."""
+    return {"status": "ok", "message": "HubSpot endpoints are working"}
 
 class HubSpotCompany(BaseModel):
     id: str
@@ -26,7 +37,9 @@ def get_hubspot_api_key():
     """Get the HubSpot API key from environment variables."""
     api_key = os.getenv("HUBSPOT_API_KEY")
     if not api_key:
+        logger.error("HUBSPOT_API_KEY not set in environment variables")
         raise HTTPException(status_code=500, detail="HUBSPOT_API_KEY not set in environment variables")
+    logger.info("HubSpot API key retrieved successfully")
     return api_key
 
 def get_clay_integration():
@@ -42,7 +55,8 @@ async def get_companies(
 ):
     """Get a list of companies from HubSpot."""
     try:
-        url = f"https://api.hubapi.com/crm/v3/objects/companies"
+        logger.info(f"Fetching companies from HubSpot with limit={limit}, offset={offset}")
+        url = "https://api.hubapi.com/crm/v3/objects/companies"
         params = {
             "limit": limit,
             "offset": offset,
@@ -53,13 +67,41 @@ async def get_companies(
             "Content-Type": "application/json"
         }
         
-        response = requests.get(url, params=params, headers=headers)
-        response.raise_for_status()
+        logger.debug(f"Making request to HubSpot API: {url}")
         
-        return response.json()
+        response = requests.get(url, params=params, headers=headers)
+        
+        # Log the response status and headers for debugging
+        logger.debug(f"HubSpot API response status: {response.status_code}")
+        logger.debug(f"HubSpot API response headers: {response.headers}")
+        
+        # Check if the response contains an error message
+        if response.status_code != 200:
+            error_detail = "Unknown error"
+            try:
+                error_data = response.json()
+                if 'message' in error_data:
+                    error_detail = error_data['message']
+                elif 'detail' in error_data:
+                    error_detail = error_data['detail']
+                logger.error(f"HubSpot API error: {error_detail}")
+            except Exception:
+                logger.error(f"HubSpot API returned non-JSON error response: {response.text}")
+            
+            raise HTTPException(status_code=response.status_code, 
+                              detail=f"HubSpot API error: {error_detail}")
+        
+        # Process successful response
+        data = response.json()
+        logger.info(f"Successfully retrieved {len(data.get('results', []))} companies from HubSpot")
+        return data
+        
     except requests.RequestException as e:
         logger.error(f"Error fetching companies from HubSpot: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching companies from HubSpot: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error in get_companies: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 @router.get("/companies/{company_id}", response_model=HubSpotCompany)
 async def get_company(
