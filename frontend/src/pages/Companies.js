@@ -87,28 +87,41 @@ const Companies = () => {
     const initialize = async () => {
       try {
         setLoading(true);
+        // Clear localStorage to ensure we're not using cached data
+        localStorage.removeItem('hubspot_companies');
+        
         // Create relationship status property in HubSpot if it doesn't exist
         // We'll do this in the background and not block the UI
         createRelationshipStatusProperty().catch(err => {
           console.warn('Could not create relationship status property:', err);
         });
         
-        // Get all companies for initial load - fetch more companies (up to 100)
+        // Get all companies for initial load - fetch maximum companies
+        console.log('Fetching companies from HubSpot...');
         const response = await hubspotApi.getCompanies(100, 0);
-        console.log('HubSpot API response:', response);
+        console.log('Full HubSpot API response:', response);
         
-        // Use the original response format that was working before
+        // Extract companies data with detailed logging
         let companiesData = [];
         
-        // This is the format that was working before our changes
-        if (response.data && response.data.results) {
+        if (response.data && response.data.results && Array.isArray(response.data.results)) {
+          // Standard HubSpot API response format
           companiesData = response.data.results;
           console.log('Found companies in results array:', companiesData.length);
         } else if (Array.isArray(response.data)) {
+          // Alternative format - direct array
           companiesData = response.data;
-          console.log('Response data is an array:', companiesData.length);
+          console.log('Response data is a direct array:', companiesData.length);
         } else if (response.data) {
-          console.log('Response data format:', response.data);
+          // Try to extract companies from any object structure
+          console.log('Examining response data format:', typeof response.data);
+          console.log('Response data keys:', Object.keys(response.data));
+          
+          // Check if response.data has a 'results' property that might be nested
+          if (response.data.results) {
+            companiesData = Array.isArray(response.data.results) ? response.data.results : [response.data.results];
+            console.log('Extracted results from response:', companiesData.length);
+          }
         }
         
         // Only use fallback data if absolutely necessary

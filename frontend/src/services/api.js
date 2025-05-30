@@ -98,7 +98,18 @@ export const schedulerApi = {
 // HubSpot API endpoints
 export const hubspotApi = {
   // Get companies
-  getCompanies: (limit = 10, offset = 0) => api.get(`/hubspot/companies?limit=${limit}&offset=${offset}`),
+  getCompanies: (limit = 10, offset = 0) => {
+    console.log(`Fetching companies with limit=${limit}, offset=${offset}`);
+    return api.get(`/hubspot/companies?limit=${limit}&offset=${offset}`)
+      .then(response => {
+        console.log('HubSpot companies API response:', response);
+        return response;
+      })
+      .catch(error => {
+        console.error('Error fetching HubSpot companies:', error);
+        throw error;
+      });
+  },
   
   // Get a specific company
   getCompany: (id) => api.get(`/hubspot/companies/${id}`),

@@ -95,7 +95,7 @@ def get_clay_integration():
 
 @router.get("/companies")
 async def get_companies(
-    limit: int = Query(10, ge=1, le=100),
+    limit: int = Query(100, ge=1, le=100),  # Default to maximum limit
     offset: int = Query(0, ge=0),
     api_key: str = Depends(get_hubspot_api_key)
 ):
