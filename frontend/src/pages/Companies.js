@@ -513,6 +513,30 @@ const Companies = () => {
     }
   }, []);
 
+  // Function to test the HubSpot API key
+  const testApiKey = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/hubspot/test-api-key`);
+      const data = await response.json();
+      
+      if (data.status === 'ok') {
+        alert('HubSpot API key is valid! Refreshing companies list...');
+        // Clear localStorage to force a fresh fetch
+        localStorage.removeItem('hubspotCompanies');
+        // Fetch companies again
+        refreshCompanies();
+      } else {
+        alert(`HubSpot API key error: ${data.message}. Status code: ${data.status_code || 'unknown'}`);
+      }
+    } catch (error) {
+      console.error('Error testing API key:', error);
+      alert(`Error testing HubSpot API key: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Update relationship status for a company
   const updateRelationshipStatus = async (companyId, status) => {
     try {
@@ -609,9 +633,21 @@ const Companies = () => {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">
-          Companies
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography variant="h4">
+            Companies
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={testApiKey}
+            disabled={isLoading}
+            sx={{ ml: 2 }}
+          >
+            {isLoading ? 'Testing...' : 'Check API Key'}
+          </Button>
+        </Box>
         <Box>
           <Tooltip title="Refresh Companies Data">
             <IconButton onClick={refreshCompanies} disabled={loading}>
