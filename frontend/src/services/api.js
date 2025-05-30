@@ -119,4 +119,22 @@ export const hubspotApi = {
   }),
 };
 
+// Scoring API endpoints
+export const scoringApi = {
+  // Get current weights
+  getWeights: () => api.get('/scoring/weights'),
+  
+  // Update weights
+  updateWeights: (weights) => api.post('/scoring/weights', { weights }),
+  
+  // Reset weights to default
+  resetWeights: () => api.post('/scoring/weights/reset'),
+  
+  // Score an entity
+  scoreEntity: (entity, weights = null) => api.post('/scoring/score', { 
+    entity,
+    weights
+  }),
+};
+
 export default api;

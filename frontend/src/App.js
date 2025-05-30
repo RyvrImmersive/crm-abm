@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Companies from './pages/Companies';
 import Scheduler from './pages/Scheduler';
 import Settings from './pages/Settings';
+import ModelTweaking from './pages/ModelTweaking';
 
 // Create a theme
 const theme = createTheme({
@@ -39,6 +40,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/companies" element={<Companies />} />
               <Route path="/scheduler" element={<Scheduler />} />
+              <Route path="/model-tweaking" element={<ModelTweaking />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </Box>

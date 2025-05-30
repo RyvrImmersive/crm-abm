@@ -10,6 +10,7 @@ from src.langflow.components.hubspot_updater import HubspotUpdaterNode
 from src.langflow.api.clay_endpoints import router as clay_router
 from src.langflow.api.scheduler_endpoints import router as scheduler_router
 from src.langflow.api.hubspot_endpoints import router as hubspot_router
+from src.langflow.api.scoring_endpoints import router as scoring_router
 import logging
 import os
 
@@ -35,6 +36,7 @@ app.add_middleware(
 app.include_router(clay_router, prefix="/api/clay", tags=["Clay"])
 app.include_router(scheduler_router, prefix="/api/scheduler", tags=["Scheduler"])
 app.include_router(hubspot_router, prefix="/api/hubspot", tags=["HubSpot"])
+app.include_router(scoring_router, prefix="/api/scoring", tags=["Scoring"])
 
 # Initialize flow with environment variables - wrapped in try/except to handle initialization errors
 try:

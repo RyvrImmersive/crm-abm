@@ -19,6 +19,9 @@ const Navigation = () => {
           <Button color="inherit" component={RouterLink} to="/scheduler">
             Scheduler
           </Button>
+          <Button color="inherit" component={RouterLink} to="/model-tweaking">
+            Model Tweaking
+          </Button>
           <Button color="inherit" component={RouterLink} to="/settings">
             Settings
           </Button>
