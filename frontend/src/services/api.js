@@ -6,7 +6,23 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Add better error handling
+  validateStatus: function (status) {
+    return status >= 200 && status < 500; // Handle all non-500 responses
+  },
 });
+
+// Add response interceptor for debugging
+api.interceptors.response.use(
+  response => {
+    console.log(`API Response [${response.config.method}] ${response.config.url}:`, response.status);
+    return response;
+  },
+  error => {
+    console.error('API Error:', error.response || error.message || error);
+    return Promise.reject(error);
+  }
+);
 
 // Clay API endpoints
 export const clayApi = {

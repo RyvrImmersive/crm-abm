@@ -44,7 +44,17 @@ const Companies = () => {
       try {
         setLoading(true);
         const response = await hubspotApi.getCompanies(50, 0);
-        setCompanies(response.data.results || []);
+        console.log('HubSpot API response:', response.data);
+        
+        // Handle different response formats
+        if (response.data && response.data.results) {
+          setCompanies(response.data.results);
+        } else if (Array.isArray(response.data)) {
+          setCompanies(response.data);
+        } else {
+          console.error('Unexpected response format:', response.data);
+          setCompanies([]);
+        }
       } catch (error) {
         console.error('Error fetching companies:', error);
       } finally {
@@ -62,7 +72,17 @@ const Companies = () => {
     try {
       setLoading(true);
       const response = await hubspotApi.searchCompanies(searchQuery);
-      setCompanies(response.data.results || []);
+      console.log('Search response:', response.data);
+      
+      // Handle different response formats
+      if (response.data && response.data.results) {
+        setCompanies(response.data.results);
+      } else if (Array.isArray(response.data)) {
+        setCompanies(response.data);
+      } else {
+        console.error('Unexpected search response format:', response.data);
+        setCompanies([]);
+      }
     } catch (error) {
       console.error('Error searching companies:', error);
     } finally {
@@ -169,22 +189,24 @@ const Companies = () => {
               {companies.length > 0 ? (
                 companies.map((company) => (
                   <TableRow key={company.id}>
-                    <TableCell>{company.properties.name}</TableCell>
-                    <TableCell>{company.properties.domain}</TableCell>
-                    <TableCell>{company.properties.industry}</TableCell>
+                    <TableCell>{company.properties?.name || 'N/A'}</TableCell>
+                    <TableCell>{company.properties?.domain || 'N/A'}</TableCell>
+                    <TableCell>{company.properties?.industry || 'N/A'}</TableCell>
                     <TableCell>
                       <Button 
                         variant="outlined" 
                         size="small"
                         onClick={() => handleCompanyClick(company)}
                         sx={{ mr: 1 }}
+                        disabled={!company.properties?.domain}
                       >
                         View
                       </Button>
                       <Button 
                         variant="contained" 
                         size="small"
-                        onClick={() => handleSyncToHubspot(company.properties.domain)}
+                        onClick={() => handleSyncToHubspot(company.properties?.domain)}
+                        disabled={!company.properties?.domain}
                       >
                         Sync
                       </Button>
