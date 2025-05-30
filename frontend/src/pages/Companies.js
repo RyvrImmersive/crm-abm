@@ -97,8 +97,10 @@ const Companies = () => {
         const response = await hubspotApi.getCompanies(100, 0);
         console.log('HubSpot API response:', response);
         
-        // Handle different response formats
+        // Use the original response format that was working before
         let companiesData = [];
+        
+        // This is the format that was working before our changes
         if (response.data && response.data.results) {
           companiesData = response.data.results;
           console.log('Found companies in results array:', companiesData.length);
@@ -106,27 +108,33 @@ const Companies = () => {
           companiesData = response.data;
           console.log('Response data is an array:', companiesData.length);
         } else if (response.data) {
-          // Try to handle other formats
-          console.log('Trying to parse response data:', response.data);
-          if (typeof response.data === 'object') {
-            // If it's an object but not what we expect, see if it has any array properties
-            const possibleArrays = Object.values(response.data).filter(val => Array.isArray(val));
-            if (possibleArrays.length > 0) {
-              companiesData = possibleArrays[0]; // Use the first array found
-              console.log('Found array in response:', companiesData.length);
-            }
-          }
+          console.log('Response data format:', response.data);
         }
         
-        console.log('Companies data extracted:', companiesData.length);
-        
-        // Fallback to dummy data if no companies are found
+        // Only use fallback data if absolutely necessary
         if (companiesData.length === 0) {
-          console.warn('No companies found in the response, using fallback data');
-          companiesData = [
-            { id: '1', properties: { name: 'Example Corp', domain: 'example.com', industry: 'Technology' } },
-            { id: '2', properties: { name: 'Test Inc', domain: 'test.com', industry: 'Finance' } }
-          ];
+          console.warn('No companies found in the response');
+          
+          // Check localStorage for previously loaded companies
+          const savedCompanies = localStorage.getItem('hubspot_companies');
+          if (savedCompanies) {
+            try {
+              const parsedCompanies = JSON.parse(savedCompanies);
+              if (parsedCompanies && parsedCompanies.length > 0) {
+                console.log('Using companies from localStorage');
+                companiesData = parsedCompanies;
+              }
+            } catch (e) {
+              console.error('Error parsing saved companies:', e);
+            }
+          }
+          
+          // If still no companies, use minimal fallback data
+          if (companiesData.length === 0) {
+            companiesData = [
+              { id: '1', properties: { name: 'No HubSpot Connection', domain: 'Check API Key', industry: 'Error' } }
+            ];
+          }
         }
         
         // Enhance companies with score data and relationship status if available

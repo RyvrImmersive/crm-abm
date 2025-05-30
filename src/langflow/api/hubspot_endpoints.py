@@ -145,18 +145,9 @@ async def get_companies(
         data = response.json()
         logger.info(f"Successfully retrieved {len(data.get('results', []))} companies from HubSpot")
         
-        # Log the raw response for debugging
-        logger.debug(f"Raw HubSpot response: {data}")
-        
-        # Ensure the response matches our expected model
-        formatted_response = {
-            "results": data.get('results', []),
-            "total": data.get('total', 0),
-            "offset": offset
-        }
-        
-        # Return the formatted response to match our expected model
-        return formatted_response
+        # Return the raw response data directly
+        # This is what worked before our changes
+        return data
         
     except requests.RequestException as e:
         logger.error(f"Error fetching companies from HubSpot: {str(e)}")
