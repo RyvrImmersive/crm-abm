@@ -120,8 +120,8 @@ async def get_companies(
             "offset": offset
         }
         
-        # Return the raw response for now to avoid Pydantic validation issues
-        return data
+        # Return the formatted response to match our expected model
+        return formatted_response
         
     except requests.RequestException as e:
         logger.error(f"Error fetching companies from HubSpot: {str(e)}")

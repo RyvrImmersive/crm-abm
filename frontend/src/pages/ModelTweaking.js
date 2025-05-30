@@ -22,64 +22,19 @@ import {
   Chip
 } from '@mui/material';
 import { scoringApi } from '../services/api';
-import InfoIcon from '@mui/icons-material/Info';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import SaveIcon from '@mui/icons-material/Save';
-import BarChartIcon from '@mui/icons-material/BarChart';
 
 const ModelTweaking = () => {
-  // State for weights
-  const [weights, setWeights] = useState({
-    hiring: 0.1,
-    funding: 0.1,
-    industry_match: 0.2,
-    domain_quality: 0.15,
-    positive_news: 0.15,
-    company_size: 0.1,
-    growth_rate: 0.1,
-    tech_adoption: 0.1
-  });
-  
-  // State for loading and messages
+  // State for loading
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
-  const [testCompany, setTestCompany] = useState({
-    properties: {
-      name: "Example Corp",
-      domain: "example.com",
-      industry: "Technology",
-      description: "A tech company with recent funding and hiring initiatives"
-    },
-    hiring: true,
-    funding: true
-  });
-  const [testResult, setTestResult] = useState(null);
   
-  // Load weights on component mount
+  // Set a welcome message on component mount
   useEffect(() => {
-    fetchWeights();
+    setMessage({
+      type: 'info',
+      text: 'Model tweaking feature is coming soon!'
+    });
   }, []);
-  
-  // Fetch current weights from API
-  const fetchWeights = async () => {
-    try {
-      setLoading(true);
-      const response = await scoringApi.getWeights();
-      setWeights(response.data.weights);
-      setMessage({
-        type: 'success',
-        text: 'Current model weights loaded successfully'
-      });
-    } catch (error) {
-      console.error('Error fetching weights:', error);
-      setMessage({
-        type: 'error',
-        text: 'Error loading model weights'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
   
   // Handle weight change
   const handleWeightChange = (factor, value) => {
@@ -202,232 +157,30 @@ const ModelTweaking = () => {
         </Alert>
       )}
       
-      <Grid container spacing={3}>
-        {/* Weight Adjustment Section */}
-        <Grid item xs={12} md={7}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Scoring Model Weights
-              </Typography>
-              <Box>
-                <Tooltip title="Reset to Default Weights">
-                  <IconButton onClick={resetWeights} disabled={loading}>
-                    <RestartAltIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Save Changes">
-                  <IconButton 
-                    onClick={saveWeights} 
-                    disabled={loading || Math.abs(totalWeight - 1) > 0.01}
-                    color="primary"
-                  >
-                    <SaveIcon />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </Box>
-            
-            <Alert 
-              severity={Math.abs(totalWeight - 1) <= 0.01 ? "success" : "warning"} 
-              sx={{ mb: 2 }}
-            >
-              Total weight: {totalWeight.toFixed(2)} {Math.abs(totalWeight - 1) > 0.01 && "(should be close to 1.0)"}
-            </Alert>
-            
-            <Grid container spacing={2}>
-              {Object.entries(weights).map(([factor, value]) => (
-                <Grid item xs={12} key={factor}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Typography id={`${factor}-slider`} sx={{ textTransform: 'capitalize', mr: 1 }}>
-                      {factor.replace('_', ' ')}
-                    </Typography>
-                    <Tooltip title={factorDescriptions[factor] || ""}>
-                      <InfoIcon fontSize="small" color="action" />
-                    </Tooltip>
-                    <Box sx={{ ml: 'auto' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {value.toFixed(2)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Slider
-                    value={value}
-                    onChange={(e, newValue) => handleWeightChange(factor, newValue)}
-                    aria-labelledby={`${factor}-slider`}
-                    step={0.01}
-                    min={0}
-                    max={1}
-                    disabled={loading}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          </Paper>
-        </Grid>
-        
-        {/* Test Model Section */}
-        <Grid item xs={12} md={5}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Test Model
-            </Typography>
-            
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Test Company Details
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Company Name"
-                    fullWidth
-                    value={testCompany.properties.name}
-                    onChange={(e) => handleTestCompanyChange('name', e.target.value)}
-                    margin="dense"
-                    variant="outlined"
-                    size="small"
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Domain"
-                    fullWidth
-                    value={testCompany.properties.domain}
-                    onChange={(e) => handleTestCompanyChange('domain', e.target.value)}
-                    margin="dense"
-                    variant="outlined"
-                    size="small"
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Industry"
-                    fullWidth
-                    value={testCompany.properties.industry}
-                    onChange={(e) => handleTestCompanyChange('industry', e.target.value)}
-                    margin="dense"
-                    variant="outlined"
-                    size="small"
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Description"
-                    fullWidth
-                    multiline
-                    rows={2}
-                    value={testCompany.properties.description}
-                    onChange={(e) => handleTestCompanyChange('description', e.target.value)}
-                    margin="dense"
-                    variant="outlined"
-                    size="small"
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Hiring</InputLabel>
-                    <Select
-                      value={testCompany.hiring ? "true" : "false"}
-                      onChange={(e) => handleBooleanChange('hiring', e.target.value === "true")}
-                      label="Hiring"
-                    >
-                      <MenuItem value="true">Yes</MenuItem>
-                      <MenuItem value="false">No</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={6}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Recent Funding</InputLabel>
-                    <Select
-                      value={testCompany.funding ? "true" : "false"}
-                      onChange={(e) => handleBooleanChange('funding', e.target.value === "true")}
-                      label="Recent Funding"
-                    >
-                      <MenuItem value="true">Yes</MenuItem>
-                      <MenuItem value="false">No</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </Grid>
-              
-              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-                <Button
-                  variant="contained"
-                  startIcon={<BarChartIcon />}
-                  onClick={testModel}
-                  disabled={loading}
-                >
-                  Test Score
-                </Button>
-              </Box>
-            </Box>
-            
-            <Divider sx={{ my: 2 }} />
-            
-            {/* Test Results */}
-            {testResult && testResult.crm_score ? (
-              <Box>
-                <Typography variant="subtitle2" gutterBottom>
-                  Test Results
-                </Typography>
-                <Card variant="outlined" sx={{ mb: 2 }}>
-                  <CardContent>
-                    <Typography variant="h4" color="primary" align="center">
-                      {Math.round(testResult.crm_score * 100)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" align="center">
-                      Score out of 100
-                    </Typography>
-                  </CardContent>
-                </Card>
-                
-                {testResult && testResult.components && testResult.components.signals && Array.isArray(testResult.components.signals) && (
-                  <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Signals Detected
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {testResult.components.signals.map((signal, index) => (
-                        <Chip 
-                          key={index} 
-                          label={signal} 
-                          variant="outlined" 
-                          size="small" 
-                        />
-                      ))}
-                    </Box>
-                  </Box>
-                )}
-              </Box>
-            ) : (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Test the model to see results
-                </Typography>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
-      </Grid>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Coming Soon
+        </Typography>
+        <Typography variant="body1" paragraph>
+          The model tweaking feature will allow you to customize the scoring weights used to evaluate companies.
+        </Typography>
+        <Typography variant="body1" paragraph>
+          You'll be able to adjust weights for factors like:
+        </Typography>
+        <ul>
+          <li>Hiring signals</li>
+          <li>Funding information</li>
+          <li>Industry match</li>
+          <li>Domain quality</li>
+          <li>Company size</li>
+          <li>Growth rate</li>
+        </ul>
+        <Typography variant="body1">
+          Check back soon for this feature!
+        </Typography>
+      </Paper>
       
-      {loading && (
-        <Box sx={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          bottom: 0, 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          backgroundColor: 'rgba(0, 0, 0, 0.3)',
-          zIndex: 9999
-        }}>
-          <CircularProgress />
-        </Box>
-      )}
+      {loading && <CircularProgress />}
     </Container>
   );
 };

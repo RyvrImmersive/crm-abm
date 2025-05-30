@@ -88,7 +88,10 @@ const Companies = () => {
       try {
         setLoading(true);
         // Create relationship status property in HubSpot if it doesn't exist
-        await createRelationshipStatusProperty();
+        // We'll do this in the background and not block the UI
+        createRelationshipStatusProperty().catch(err => {
+          console.warn('Could not create relationship status property:', err);
+        });
         
         // Get all companies for initial load
         const response = await hubspotApi.getCompanies(100, 0);
@@ -127,7 +130,12 @@ const Companies = () => {
 
   // Apply filters and sorting
   useEffect(() => {
-    if (companies.length === 0) return;
+    // Always set filtered companies even if there are no companies
+    // This ensures we don't lose the reference to filtered companies
+    if (companies.length === 0) {
+      setFilteredCompanies([]);
+      return;
+    }
     
     let result = [...companies];
     
