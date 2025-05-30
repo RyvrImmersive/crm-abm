@@ -93,7 +93,7 @@ const Companies = () => {
           console.warn('Could not create relationship status property:', err);
         });
         
-        // Get all companies for initial load
+        // Get all companies for initial load - fetch more companies (up to 100)
         const response = await hubspotApi.getCompanies(100, 0);
         console.log('HubSpot API response:', response);
         
@@ -101,8 +101,10 @@ const Companies = () => {
         let companiesData = [];
         if (response.data && response.data.results) {
           companiesData = response.data.results;
+          console.log('Found companies in results array:', companiesData.length);
         } else if (Array.isArray(response.data)) {
           companiesData = response.data;
+          console.log('Response data is an array:', companiesData.length);
         } else if (response.data) {
           // Try to handle other formats
           console.log('Trying to parse response data:', response.data);
@@ -111,19 +113,44 @@ const Companies = () => {
             const possibleArrays = Object.values(response.data).filter(val => Array.isArray(val));
             if (possibleArrays.length > 0) {
               companiesData = possibleArrays[0]; // Use the first array found
-              console.log('Found array in response:', companiesData);
+              console.log('Found array in response:', companiesData.length);
             }
           }
         }
         
-        console.log('Companies data extracted:', companiesData);
+        console.log('Companies data extracted:', companiesData.length);
         
+        // Try to fetch more companies if we didn't get enough
+        if (companiesData.length < 5) {
+          try {
+            console.log('Fetching more companies directly from HubSpot API...');
+            // Try a direct API call with a different approach
+            const moreResponse = await hubspotApi.getProperties();
+            console.log('Properties response:', moreResponse.data);
+            
+            // Fetch some companies using search
+            const searchResponse = await hubspotApi.searchCompanies('a');
+            console.log('Search response:', searchResponse.data);
+            
+            if (searchResponse.data && searchResponse.data.results && searchResponse.data.results.length > 0) {
+              companiesData = searchResponse.data.results;
+              console.log('Using search results instead:', companiesData.length);
+            }
+          } catch (fetchError) {
+            console.error('Error fetching additional companies:', fetchError);
+          }
+        }
+        
+        // Only use dummy data if we absolutely couldn't get any companies
         if (companiesData.length === 0) {
-          console.warn('No companies found in the response');
+          console.warn('No companies found in any response, using dummy data');
           // For testing, create some dummy data
           companiesData = [
             { id: '1', properties: { name: 'Example Corp', domain: 'example.com', industry: 'Technology' } },
-            { id: '2', properties: { name: 'Test Inc', domain: 'test.com', industry: 'Finance' } }
+            { id: '2', properties: { name: 'Test Inc', domain: 'test.com', industry: 'Finance' } },
+            { id: '3', properties: { name: 'Acme Ltd', domain: 'acme.com', industry: 'Manufacturing' } },
+            { id: '4', properties: { name: 'Global Services', domain: 'globalservices.com', industry: 'Services' } },
+            { id: '5', properties: { name: 'Tech Solutions', domain: 'techsolutions.com', industry: 'Technology' } }
           ];
         }
         

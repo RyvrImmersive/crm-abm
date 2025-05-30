@@ -75,7 +75,7 @@ async def get_companies(
         params = {
             "limit": limit,
             "offset": offset,
-            "properties": "name,domain,industry,numberofemployees,description,linkedin_company_page"
+            "properties": "name,domain,industry,numberofemployees,description,linkedin_company_page,relationship_status,clay_score,last_clay_update,website,phone,address,city,state,country"
         }
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -174,8 +174,8 @@ async def search_companies(
                     ]
                 }
             ],
-            "properties": ["name", "domain", "industry", "numberofemployees", "description", "linkedin_company_page"],
-            "limit": 20
+            "properties": ["name", "domain", "industry", "numberofemployees", "description", "linkedin_company_page", "relationship_status", "clay_score", "last_clay_update", "website", "phone", "address", "city", "state", "country"],
+            "limit": 50
         }
         headers = {
             "Authorization": f"Bearer {api_key}",
