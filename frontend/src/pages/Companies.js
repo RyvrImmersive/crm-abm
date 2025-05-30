@@ -479,7 +479,7 @@ const Companies = () => {
                         label="Company Size"
                       >
                         <MenuItem value="">All Sizes</MenuItem>
-                        <MenuItem value="small">Small (<50)</MenuItem>
+                        <MenuItem value="small">Small (&lt;50)</MenuItem>
                         <MenuItem value="medium">Medium (50-199)</MenuItem>
                         <MenuItem value="large">Large (200+)</MenuItem>
                       </Select>
