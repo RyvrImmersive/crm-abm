@@ -4,9 +4,13 @@ from ..node.types import PythonNode
 from hubspot import HubSpot
 from ..utils.cache import CacheManager
 import logging
-from pydantic import Field, ValidationError
+from pydantic import Field, ValidationError as PydanticValidationError
 from datetime import datetime
 import json
+
+class ValidationError(Exception):
+    """Custom validation error class for HubspotFeedNode"""
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -36,23 +40,11 @@ class HubspotFeedNode(PythonNode):
         # Validate inputs
         if not access_token:
             logger.error("HubSpot access token is required")
-            raise ValidationError(
-                "HubSpot access token is required",
-                context={
-                    'node_type': 'HubspotFeedNode',
-                    'entity_type': entity_type
-                }
-            )
+            raise ValidationError("HubSpot access token is required")
             
         if not entity_type or entity_type not in ['company', 'contact', 'deal']:
             logger.error(f"Invalid entity type: {entity_type}")
-            raise ValidationError(
-                "Invalid entity type",
-                context={
-                    'node_type': 'HubspotFeedNode',
-                    'entity_type': entity_type
-                }
-            )
+            raise ValidationError(f"Invalid entity type: {entity_type}")
         
         # Initialize HubSpot client (only once)
         try:

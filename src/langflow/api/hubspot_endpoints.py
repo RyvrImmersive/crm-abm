@@ -18,7 +18,7 @@ class RelationshipStatus(str, Enum):
     COMPETITION = "Competition"
     INFLUENCER = "Influencer"
 
-router = APIRouter(prefix="/hubspot", tags=["hubspot"])
+router = APIRouter(tags=["hubspot"])
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -101,41 +101,72 @@ async def get_companies(
     api_key: str = Depends(get_hubspot_api_key)
 ):
     """Get a list of companies from HubSpot."""
+    url = "https://api.hubapi.com/crm/v3/objects/companies"
+    
+    # Log the request with the API key (masked for security)
+    masked_key = f"{api_key[:4]}...{api_key[-4:]}" if api_key else "[NO KEY]"
+    logger.info(f"Fetching companies from HubSpot with limit={limit}, offset={offset}, API Key: {masked_key}")
+    
     try:
-        logger.info(f"Fetching companies from HubSpot with limit={limit}, offset={offset}")
-        url = "https://api.hubapi.com/crm/v3/objects/companies"
+        # Log the full request URL and headers (without the actual API key)
         params = {
             "limit": limit,
             "offset": offset,
-            "properties": "name,domain,industry,numberofemployees,description,linkedin_company_page,relationship_status,clay_score,last_clay_update,website,phone,address,city,state,country"
+            "properties": ["name", "domain", "phone", "city", "state", "country", "industry"],
+            "archived": "false"
         }
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
+        logger.info(f"Request URL: {url}")
+        logger.info(f"Request params: {params}")
         
-        logger.debug(f"Making request to HubSpot API: {url}")
+        # Make the API request to HubSpot
+        response = requests.get(
+            url,
+            params=params,
+            headers={"Authorization": f"Bearer {api_key}"}
+        )
         
-        response = requests.get(url, params=params, headers=headers)
+        # Log the response status code and headers
+        logger.info(f"HubSpot API response status code: {response.status_code}")
+        logger.info(f"Response headers: {dict(response.headers)}")
         
-        # Check if the request was successful
+        # Check for errors
         response.raise_for_status()
         
         # Process successful response
         data = response.json()
-        logger.info(f"Successfully retrieved {len(data.get('results', []))} companies from HubSpot")
+        results = data.get('results', [])
+        total = data.get('total', 0)
         
-        # Log the raw response structure
-        logger.info(f"Response structure: {str(data)[:200]}...")
+        logger.info(f"Successfully retrieved {len(results)} companies from HubSpot (total: {total})")
+        
+        # Log first few companies for debugging
+        if results:
+            logger.info(f"First company: {json.dumps(results[0], indent=2, default=str)}")
         
         # Return the raw response data directly without any modifications
-        # This ensures we're getting exactly what the HubSpot API returns
-        return response.json()
+        return data
+        
+    except requests.exceptions.HTTPError as http_err:
+        error_msg = f"HTTP error occurred: {http_err}"
+        if hasattr(http_err, 'response') and http_err.response is not None:
+            error_msg += f"\nResponse status: {http_err.response.status_code}"
+            try:
+                error_data = http_err.response.json()
+                error_msg += f"\nError details: {json.dumps(error_data, indent=2)}"
+            except ValueError:
+                error_msg += f"\nResponse text: {http_err.response.text}"
+        logger.error(error_msg)
+        return {"results": [], "total": 0, "offset": offset, "error": error_msg}
         
     except requests.RequestException as e:
-        logger.error(f"Error fetching companies from HubSpot: {str(e)}")
-        # Return a fallback response with an empty list of companies
-        return {"results": [], "total": 0, "offset": offset}
+        error_msg = f"Error fetching companies from HubSpot: {str(e)}"
+        logger.error(error_msg)
+        return {"results": [], "total": 0, "offset": offset, "error": error_msg}
+    
+    except Exception as e:
+        error_msg = f"Unexpected error: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return {"results": [], "total": 0, "offset": offset, "error": error_msg}
 
 @router.get("/companies/{company_id}")
 async def get_company(

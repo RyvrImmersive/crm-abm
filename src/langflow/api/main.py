@@ -47,14 +47,22 @@ app.include_router(scoring_router, prefix="/api/scoring", tags=["Scoring"])
 
 # Initialize flow with environment variables - wrapped in try/except to handle initialization errors
 try:
+    # Log environment variables for debugging
+    logger.info("Initializing ABMCRMFlow with environment variables:")
+    logger.info(f"HUBSPOT_API_KEY: {'*' * 8 + os.getenv('HUBSPOT_API_KEY', '')[-4:] if os.getenv('HUBSPOT_API_KEY') else 'Not set'}")
+    logger.info(f"ASTRA_DB_ID: {os.getenv('ASTRA_DB_ID', 'Not set')}")
+    logger.info(f"ASTRA_DB_REGION: {os.getenv('ASTRA_DB_REGION', 'Not set')}")
+    logger.info(f"ASTRA_DB_TOKEN: {'*' * 8 + os.getenv('ASTRA_DB_TOKEN', '')[-4:] if os.getenv('ASTRA_DB_TOKEN') else 'Not set'}")
+    
     flow = ABMCRMFlow(
         hubspot_access_token=os.getenv("HUBSPOT_API_KEY"),
         astra_db_id=os.getenv("ASTRA_DB_ID"),
         astra_db_region=os.getenv("ASTRA_DB_REGION"),
         astra_db_token=os.getenv("ASTRA_DB_TOKEN")
     )
+    logger.info("ABMCRMFlow initialized successfully")
 except Exception as e:
-    logger.error(f"Error initializing ABMCRMFlow: {str(e)}")
+    logger.error(f"Error initializing ABMCRMFlow: {str(e)}", exc_info=True)
     flow = None
 
 # Initialize HubSpot updater - wrapped in try/except to handle initialization errors
@@ -497,11 +505,20 @@ async def update_hubspot_now(background_tasks: BackgroundTasks):
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting up the application")
-    # Only start the scheduler if we have the necessary components initialized
-    if flow is not None and hubspot_updater is not None:
-        scheduler.start()
-    else:
-        logger.warning("Not starting scheduler because flow or hubspot_updater is not initialized")
+    try:
+        if flow and hubspot_updater:
+            scheduler.start()
+            logger.info("Scheduler started")
+    except Exception as e:
+        logger.warning(f"Not starting scheduler because flow or hubspot_updater is not initialized")
+    
+    # Log all registered routes for debugging
+    logger.info("Registered routes:")
+    for route in app.routes:
+        if hasattr(route, 'path'):
+            path = route.path
+            methods = getattr(route, 'methods', [])
+            logger.info(f"{path} - {methods}")
 
 # Stop the scheduler when the app shuts down
 @app.on_event("shutdown")
