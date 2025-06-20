@@ -34,10 +34,15 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Root endpoint serves the frontend
+# Root endpoint serves the beautiful test page
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    return FileResponse(static_dir / "index.html")
+    """Serve the keyword research test page as the main page"""
+    test_file = Path(__file__).parent / "test_page.html"
+    if test_file.exists():
+        return FileResponse(test_file)
+    else:
+        return FileResponse(static_dir / "index.html")  # Fallback to basic version
 
 # Test page for keyword research
 @app.get("/test", response_class=HTMLResponse)
