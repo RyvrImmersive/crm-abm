@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Ads Keyword Research</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Google Ads Keyword Research</h1>
+            
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="keywords">
+                    Enter Seed Keywords (comma-separated)
+                </label>
+                <div class="flex">
+                    <input 
+                        type="text" 
+                        id="keywords" 
+                        placeholder="e.g., car loan, personal loan, home loan" 
+                        class="flex-1 shadow appearance-none border rounded-l py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    >
+                    <button 
+                        onclick="getKeywordIdeas()" 
+                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r focus:outline-none focus:shadow-outline flex items-center"
+                    >
+                        <i class="fas fa-search mr-2"></i> Search
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="location">
+                        Location
+                    </label>
+                    <select id="location" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="1022378">India</option>
+                        <option value="2840">United States</option>
+                        <option value="23424975">United Kingdom</option>
+                        <option value="23424748">Canada</option>
+                        <option value="23424748">Australia</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="language">
+                        Language
+                    </label>
+                    <select id="language" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="1000">English</option>
+                        <option value="1001">Hindi</option>
+                        <option value="1005">French</option>
+                        <option value="1006">Spanish</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="loading" class="hidden text-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                <p class="mt-2 text-gray-600">Fetching keyword ideas...</p>
+            </div>
+
+            <div id="results" class="mt-8">
+                <div id="results-header" class="hidden">
+                    <h2 class="text-xl font-semibold mb-4">Keyword Ideas</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="py-3 px-4 text-left">Keyword</th>
+                                    <th class="py-3 px-4 text-right">Avg. Monthly Searches</th>
+                                    <th class="py-3 px-4 text-right">Competition</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body" class="divide-y divide-gray-200">
+                                <!-- Results will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="error" class="hidden mt-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700">
+                <p id="error-message"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getKeywordIdeas() {
+            const keywordsInput = document.getElementById('keywords').value.trim();
+            const locationId = document.getElementById('location').value;
+            const languageId = document.getElementById('language').value;
+            
+            if (!keywordsInput) {
+                showError('Please enter at least one keyword');
+                return;
+            }
+
+            const keywords = keywordsInput.split(',').map(k => k.trim()).filter(k => k);
+            
+            // Show loading, hide previous results and errors
+            document.getElementById('loading').classList.remove('hidden');
+            const resultsHeader = document.getElementById('results-header');
+            if (resultsHeader) resultsHeader.classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+            
+            // Make API request
+            fetch('http://localhost:8000/api/keyword-research', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    keywords: keywords,
+                    location_id: parseInt(locationId),
+                    language_id: parseInt(languageId)
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { 
+                        throw new Error(err.detail || 'An error occurred'); 
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayResults(data);
+            })
+            .catch(error => {
+                showError(error.message || 'Failed to fetch keyword ideas');
+            })
+            .finally(() => {
+                document.getElementById('loading').classList.add('hidden');
+            });
+        }
+
+        function displayResults(keywords) {
+            const resultsBody = document.getElementById('results-body');
+            resultsBody.innerHTML = '';
+            
+            if (!keywords || keywords.length === 0) {
+                showError('No keyword ideas found');
+                return;
+            }
+            
+            // Sort by search volume (descending)
+            keywords.sort((a, b) => (b.avg_monthly_searches || 0) - (a.avg_monthly_searches || 0));
+            
+            keywords.forEach(keyword => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                const competitionClass = {
+                    'LOW': 'text-green-600',
+                    'MEDIUM': 'text-yellow-600',
+                    'HIGH': 'text-red-600'
+                }[keyword.competition] || 'text-gray-600';
+                
+                row.innerHTML = `
+                    <td class="py-3 px-4">${keyword.keyword}</td>
+                    <td class="py-3 px-4 text-right">${keyword.avg_monthly_searches?.toLocaleString() || 'N/A'}</td>
+                    <td class="py-3 px-4 text-right ${competitionClass}">${keyword.competition || 'N/A'}</td>
+                `;
+                
+                resultsBody.appendChild(row);
+            });
+            
+            document.getElementById('results-header').classList.remove('hidden');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            document.getElementById('error-message').textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
