@@ -8,8 +8,6 @@ from dotenv import load_dotenv
 import logging
 
 # Import our existing services
-import sys
-sys.path.append('..')
 from services.astra_service import AstraService
 from services.langflow_service import LangflowService
 from services.lookalike_service import LookalikeService

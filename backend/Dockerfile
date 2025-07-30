@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy services directory (shared across backend)
+COPY services/ ./services/
+
 # Copy backend application code
 COPY backend/ .
 
