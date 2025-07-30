@@ -7,7 +7,6 @@ services:
     plan: starter
     branch: main
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
     numInstances: 1
     healthCheckPath: /api/health
     envVars:
