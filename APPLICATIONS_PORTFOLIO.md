@@ -10,7 +10,8 @@ A comprehensive overview of all applications and platforms developed and deploye
 ✅ **Backend APIs**: 2 services operational  
 ✅ **Frontend Applications**: 2 apps deployed  
 ✅ **Health Monitoring**: All systems green  
-✅ **Documentation**: Complete and up-to-date
+✅ **Documentation**: Complete and up-to-date  
+🛠️ **EnableMart WooCommerce**: In development pipeline
 
 ---
 
@@ -171,7 +172,100 @@ A comprehensive CRM integration platform with HubSpot API connectivity for autom
 
 ---
 
-## 📊 **4. Analytics & Reporting Dashboard**
+## 🛍️ **4. EnableMart WooCommerce AI Product Recommendations**
+
+### **🎯 Overview**
+An intelligent e-commerce product recommendation system leveraging AI and similarity search to provide personalized product suggestions, cross-sell opportunities, and enhanced customer experience for WooCommerce stores.
+
+### **🔗 Access**
+- **Repository**: [`RyvrImmersive/crm-abm`](https://github.com/RyvrImmersive/crm-abm) (Planned Integration)
+- **Component**: EnableMart Product Recommendation Engine
+- **Status**: 🛠️ **In Development Pipeline**
+- **Target Platform**: WooCommerce Integration
+
+### **✨ Key Features**
+
+#### **🤖 AI-Powered Product Matching**
+- **Similarity Search**: Advanced vector-based product matching using AstraDB
+- **Feature Analysis**: Multi-dimensional product characteristic analysis
+- **Behavioral Learning**: Customer preference pattern recognition
+- **Real-time Recommendations**: Dynamic product suggestions based on browsing behavior
+
+#### **🛍️ E-commerce Intelligence**
+- **Cross-sell Optimization**: Intelligent related product suggestions
+- **Upsell Opportunities**: Premium product recommendations
+- **Inventory-aware Suggestions**: Stock-level conscious recommendations
+- **Seasonal Adaptability**: Time-sensitive product promotions
+
+#### **📊 Customer Analytics**
+- **Purchase History Analysis**: Historical buying pattern insights
+- **Preference Profiling**: Individual customer taste modeling
+- **Cohort Analysis**: Customer segment-based recommendations
+- **Conversion Tracking**: Recommendation effectiveness metrics
+
+#### **🔌 WooCommerce Integration**
+- **REST API Integration**: Seamless WooCommerce API connectivity
+- **Product Catalog Sync**: Automated product data synchronization
+- **Cart Integration**: Real-time cart-based recommendations
+- **Checkout Optimization**: Last-minute upsell suggestions
+
+### **🏢 Technical Architecture**
+
+#### **💾 Data Layer**
+- **Product Vectors**: AstraDB-stored product feature embeddings
+- **Customer Profiles**: Behavioral and preference data storage
+- **Interaction Tracking**: Real-time user activity monitoring
+- **Inventory Integration**: Live stock and pricing data
+
+#### **🤖 AI/ML Components**
+- **Similarity Engine**: Leveraging existing lookalike algorithms
+- **Recommendation Models**: Collaborative and content-based filtering
+- **Feature Extraction**: Product attribute vectorization
+- **Learning Pipeline**: Continuous model improvement
+
+#### **🔌 API Endpoints**
+```bash
+# Product Recommendations
+POST /api/recommendations/products
+GET /api/recommendations/similar/{product_id}
+GET /api/recommendations/customer/{customer_id}
+
+# Analytics
+GET /api/analytics/recommendations/performance
+GET /api/analytics/products/trending
+```
+
+### **📊 Expected Impact**
+- **📈 Conversion Rate**: 15-25% increase in product page conversions
+- **💰 Average Order Value**: 20-30% increase through cross-sell/upsell
+- **🎯 Customer Engagement**: Enhanced browsing experience and retention
+- **📉 Cart Abandonment**: Reduced abandonment through smart suggestions
+
+### **🚀 Implementation Roadmap**
+
+#### **Phase 1: Foundation (Weeks 1-2)**
+- WooCommerce API integration setup
+- Product catalog synchronization
+- Basic similarity search implementation
+
+#### **Phase 2: Core Features (Weeks 3-4)**
+- AI recommendation engine development
+- Customer behavior tracking
+- Real-time suggestion API
+
+#### **Phase 3: Advanced Features (Weeks 5-6)**
+- Cross-sell/upsell optimization
+- Analytics dashboard
+- Performance monitoring
+
+#### **Phase 4: Optimization (Weeks 7-8)**
+- Machine learning model refinement
+- A/B testing framework
+- Production deployment
+
+---
+
+## 📊 **5. Analytics & Reporting Dashboard**
 
 ### **🎯 Overview**
 A comprehensive analytics dashboard providing insights across all platform modules with real-time reporting and visualization.
@@ -204,7 +298,7 @@ A comprehensive analytics dashboard providing insights across all platform modul
 - **Frontend**: React 18, Material-UI, Axios
 - **Database**: AstraDB (Vector Cassandra), PostgreSQL
 - **AI/ML**: Langflow, OpenAI API, Custom ML models
-- **APIs**: HubSpot, Google Ads, Exa Search, Tavily Research
+- **APIs**: HubSpot, Google Ads, Exa Search, Tavily Research, WooCommerce (Planned)
 
 ### **☁️ Deployment Infrastructure**
 - **🌐 Production Platform**: Render (LIVE)
@@ -255,6 +349,14 @@ A comprehensive analytics dashboard providing insights across all platform modul
 ## 🚀 **Future Roadmap**
 
 ### **🔮 Planned Features**
+
+#### **🔥 Priority 1: EnableMart WooCommerce Integration**
+- **🛍️ Product Recommendations**: AI-powered similarity search for e-commerce
+- **📊 Customer Analytics**: Behavioral analysis and preference modeling
+- **🔄 Real-time Suggestions**: Dynamic product recommendations
+- **💰 Revenue Optimization**: Cross-sell and upsell intelligence
+
+#### **🚀 Priority 2: Platform Enhancements**
 - **AI-Powered Insights**: Advanced ML models for predictive analytics
 - **Mobile Applications**: Native iOS and Android apps
 - **Advanced Integrations**: Salesforce, Pipedrive, additional CRM platforms
