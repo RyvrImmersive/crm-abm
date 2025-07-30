@@ -1,178 +1,186 @@
-# Clay-HubSpot Integration
+# 🚀 Company Intelligence Platform - LIVE!
 
-A full-stack application for integrating Clay.com with HubSpot, allowing you to monitor company changes and update corresponding scores in HubSpot based on data fetched from Clay.
+[![Deployment Status](https://img.shields.io/badge/Deployment-Live-brightgreen)](https://company-intelligence-api.onrender.com/api/health)
+[![Frontend Status](https://img.shields.io/badge/Frontend-Live-brightgreen)](https://company-intelligence-frontend.onrender.com)
+[![API Docs](https://img.shields.io/badge/API-Documentation-blue)](https://company-intelligence-api.onrender.com/docs)
 
-## Features
-- Clay data integration with HubSpot
-- Company data synchronization
-- Scheduled updates
-- Modern React frontend
-- RESTful API
-- Webhook handling
+A professional, production-ready Company Intelligence Platform that provides comprehensive company research, AI-powered lookalike discovery, and sentiment analysis. Built with FastAPI, React, and deployed on Render.
 
-## Setup
+## 🌐 **Live Application**
 
-### Backend
-1. Clone the repository
-2. Configure environment variables in `.env`
-3. Install dependencies: `pip install -r requirements.txt`
-4. Run the backend: `uvicorn src.langflow.api.main:app --reload`
+### **🔗 Production URLs:**
+- **🎯 Main Application**: https://company-intelligence-frontend.onrender.com
+- **🔧 API Backend**: https://company-intelligence-api.onrender.com
+- **📚 API Documentation**: https://company-intelligence-api.onrender.com/docs
+- **💚 Health Check**: https://company-intelligence-api.onrender.com/api/health
 
-### Frontend
-1. Navigate to the frontend directory: `cd frontend`
-2. Install dependencies: `npm install`
-3. Run the frontend: `npm start`
+## ✨ **Features**
 
-### Docker
-Alternatively, you can run the entire application with Docker:
-`docker-compose up`
+### **🔍 Company Research Engine**
+- **Smart Company Lookup**: Domain and company name validation
+- **AI-Powered Research**: Langflow integration for comprehensive data
+- **Intelligent Caching**: AstraDB-powered cache with configurable freshness
+- **Real-time Processing**: Live data from multiple research APIs
+- **Comprehensive Metrics**: Financial data, hiring status, growth scores
 
-## API Endpoints
+### **🤖 AI-Powered Lookalike Discovery**
+- **Similar Company Identification**: Find companies similar to your target
+- **Multi-source Data**: Exa Search and Tavily Research integration
+- **Smart Filtering**: Advanced algorithms for relevant matches
+- **Scalable Processing**: Handle multiple company comparisons
 
-### Clay Endpoints
-- `/api/clay/process-company`: Process a single company
-- `/api/clay/process-companies`: Process multiple companies
-- `/api/clay/company-news/{domain}`: Get company news
-- `/api/clay/company-jobs/{domain}`: Get company jobs
-- `/api/clay/company-funding/{domain}`: Get company funding
-- `/api/clay/company-profile/{domain}`: Get company profile
-- `/api/clay/sync-to-hubspot/{domain}`: Sync company data to HubSpot
-- `/api/clay/create-hubspot-properties`: Create HubSpot properties
+### **📊 Sentiment Analysis**
+- **News Sentiment**: Analyze recent company news and sentiment
+- **Market Intelligence**: Track company perception and trends
+- **Risk Assessment**: Identify potential opportunities and risks
 
-### HubSpot Endpoints
-- `/api/hubspot/companies`: Get companies from HubSpot
-- `/api/hubspot/companies/{company_id}`: Get a specific company
-- `/api/hubspot/companies/search`: Search for companies
+### **🎨 Professional UI/UX**
+- **Modern React Frontend**: Built with Material-UI components
+- **Responsive Design**: Works seamlessly on all devices
+- **Intuitive Navigation**: Tab-based interface for easy use
+- **Real-time Feedback**: Loading states and error handling
 
-### Scheduler Endpoints
-- `/api/scheduler/status`: Get scheduler status
-- `/api/scheduler/start`: Start the scheduler
+### **🔧 Production-Ready Architecture**
+- **RESTful API**: FastAPI with automatic OpenAPI documentation
+- **Async Processing**: Non-blocking operations for optimal performance
+- **Health Monitoring**: Comprehensive health checks and error handling
+- **Security**: Environment-based configuration and input validation
 
-### Prerequisites
-- Python 3.9+
-- Node.js 16+
-- AstraDB account
-- API keys: Exa, Tavily, Langflow
+## 🚀 **Quick Start**
 
-### 1. Environment Setup
+### **🌐 Use the Live Application (Recommended)**
+The application is already deployed and ready to use:
+- **Main App**: https://company-intelligence-frontend.onrender.com
+- **API Docs**: https://company-intelligence-api.onrender.com/docs
+
+### **💻 Local Development Setup**
+
+#### **Prerequisites**
+- Python 3.11+
+- Node.js 18+
+- Git
+
+#### **Backend Setup**
 ```bash
-# Clone and setup environment
-cp .env.example .env
-# Edit .env with your API keys
-```
+# Clone the repository
+git clone https://github.com/RyvrImmersive/crm-abm.git
+cd crm-abm
 
-### 2. Backend Launch
-```bash
+# Set up Python environment
 cd backend
 pip install -r requirements.txt
+
+# Configure environment variables
+cp ../.env.example .env
+# Edit .env with your API keys
+
+# Run the backend
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 3. Frontend Launch
+#### **Frontend Setup**
 ```bash
+# In a new terminal
 cd frontend
 npm install
 npm start
 ```
 
-### 4. Access Application
-- **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/api/health
+#### **Docker Setup**
+```bash
+# Run the entire application
+docker-compose up
+```
 
-## 🔧 Configuration
-
-### Required Environment Variables
-```env
+### **🔑 Required Environment Variables**
+```bash
 # Database
-ASTRA_DB_TOKEN=your_astra_token
-ASTRA_DB_ENDPOINT=your_astra_endpoint
+ASTRA_DB_TOKEN=your_astra_db_token
+ASTRA_DB_ENDPOINT=your_astra_db_endpoint
 
-# AI APIs
-EXA_API_KEY=your_exa_key
-TAVILY_API_KEY=your_tavily_key
-LANGFLOW_API_KEY=your_langflow_key
-LANGFLOW_FLOW_URL=your_langflow_url
+# AI Services
+LANGFLOW_API_KEY=your_langflow_api_key
+LANGFLOW_FLOW_URL=your_langflow_flow_url
 
-# Optional
-DATA_FRESHNESS_DAYS=360
+# Research APIs (Optional)
+EXA_API_KEY=your_exa_api_key
+TAVILY_API_KEY=your_tavily_api_key
 ```
 
-## 📖 Usage Examples
+## 📚 **API Endpoints**
 
-### Research a Company
-1. Enter company name (e.g., "Tesla")
-2. Enter domain (e.g., "tesla.com")
-3. Click "Research Company"
-4. View comprehensive business intelligence
+### **🔍 Company Research**
+- `POST /api/research`: Research a company by domain or name
+- `GET /api/health`: Health check endpoint
+- `GET /docs`: Interactive API documentation
 
-### Find Similar Companies
-1. Research a company first
-2. Click "Find Similar Companies"
-3. View lookalike companies with:
-   - Similarity scores
-   - Financial data (revenue, market cap)
-   - Industry classification
-   - Direct website links
+### **🤖 Lookalike Discovery**
+- `POST /api/lookalike`: Find companies similar to a target company
+- `GET /api/lookalike/{company_id}`: Get cached lookalike results
 
-## 🚢 Deployment
+### **📊 Sentiment Analysis**
+- `POST /api/sentiment`: Analyze company sentiment from news
+- `GET /api/sentiment/{company_id}`: Get cached sentiment analysis
 
-### Docker Deployment
+### **💾 Data Management**
+- `GET /api/companies`: List all researched companies
+- `GET /api/companies/{company_id}`: Get specific company data
+- `DELETE /api/companies/{company_id}`: Delete company data
+
+### **📈 Example API Usage**
+
+#### **Research a Company**
 ```bash
-docker-compose up -d
-```
-
-### Cloud Deployment
-- **Backend**: Deploy to Render/Railway using `render.yaml`
-- **Frontend**: Deploy to Netlify using `netlify.toml`
-- **Environment**: Set all required environment variables
-
-See [DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md) for detailed instructions.
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   React Frontend │────│  FastAPI Backend │────│    AstraDB      │
-│   (Port 3000)    │    │   (Port 8000)    │    │   (Vector DB)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ├── Langflow API
-                                ├── Exa Search API
-                                └── Tavily Research API
-```
-
-## 🧪 Testing
-
-### API Testing
-```bash
-# Health check
-curl http://localhost:8000/api/health
-
-# Research company
-curl -X POST "http://localhost:8000/api/research" \
+curl -X POST "https://company-intelligence-api.onrender.com/api/research" \
   -H "Content-Type: application/json" \
-  -d '{"company_name": "Tesla", "domain_name": "tesla.com"}'
+  -d '{"input": "openai.com"}'
 ```
 
-## 🤝 Contributing
+#### **Find Similar Companies**
+```bash
+curl -X POST "https://company-intelligence-api.onrender.com/api/lookalike" \
+  -H "Content-Type: application/json" \
+  -d '{"company_name": "OpenAI", "limit": 5}'
+```
 
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open Pull Request
+#### **Health Check**
+```bash
+curl "https://company-intelligence-api.onrender.com/api/health"
+```
 
-## 📄 License
+## 📊 **Architecture**
 
-MIT License - see [LICENSE](LICENSE) file for details.
+### **Backend (FastAPI)**
+- **Framework**: FastAPI with async support
+- **Database**: AstraDB (Cassandra) for scalable data storage
+- **AI Integration**: Langflow for research workflows
+- **APIs**: Exa Search, Tavily Research for data enrichment
+- **Deployment**: Docker containers on Render
 
-## 🆘 Support
+### **Frontend (React)**
+- **Framework**: React 18 with Material-UI
+- **State Management**: React hooks and context
+- **Styling**: Material-UI components with custom theming
+- **Deployment**: Static hosting on Render
 
-- **Documentation**: Check `/docs` endpoint when running
-- **Issues**: Create GitHub issues for bugs/features
-- **API Keys**: Ensure all required environment variables are set
+### **Infrastructure**
+- **Platform**: Render (Production)
+- **Database**: AstraDB (Cloud Cassandra)
+- **Monitoring**: Built-in health checks and logging
+- **Security**: Environment-based secrets management
+
+## 🔗 **Related Documentation**
+
+- **[Deployment Summary](./DEPLOYMENT_SUMMARY.md)**: Complete deployment guide and troubleshooting
+- **[Executive Summary](./EXECUTIVE_SUMMARY.md)**: Business overview and objectives
+- **[Applications Portfolio](./APPLICATIONS_PORTFOLIO.md)**: Complete application ecosystem
+
+## 📞 **Support**
+
+- **Live API Documentation**: https://company-intelligence-api.onrender.com/docs
+- **Health Status**: https://company-intelligence-api.onrender.com/api/health
+- **GitHub Repository**: https://github.com/RyvrImmersive/crm-abm
 
 ---
 
-**Built with ❤️ for comprehensive company intelligence and business research.**
+**✨ Built with ❤️ by RyvrImmersive | Deployed on Render | Powered by AstraDB & Langflow**
