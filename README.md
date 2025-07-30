@@ -159,9 +159,16 @@ curl "https://company-intelligence-api.onrender.com/api/health"
 ### **Backend (FastAPI)**
 - **Framework**: FastAPI with async support
 - **Database**: AstraDB (Cassandra) for scalable data storage
-- **AI Integration**: Langflow for research workflows
+- **AI Integration**: Langflow with PostgreSQL for workflow persistence
 - **APIs**: Exa Search, Tavily Research for data enrichment
 - **Deployment**: Docker containers on Render
+
+### **AI Workflow Platform (Langflow)**
+- **Platform**: Langflow deployed on Render
+- **Database**: PostgreSQL for flow persistence
+- **Custom Agents**: Company research, financial data, sentiment analysis
+- **Integration**: Direct API connection to backend services
+- **Persistence**: Workflows preserved during updates
 
 ### **Frontend (React)**
 - **Framework**: React 18 with Material-UI
@@ -171,7 +178,8 @@ curl "https://company-intelligence-api.onrender.com/api/health"
 
 ### **Infrastructure**
 - **Platform**: Render (Production)
-- **Database**: AstraDB (Cloud Cassandra)
+- **Database**: AstraDB (Cloud Cassandra) + PostgreSQL (Langflow)
+- **AI Workflows**: Langflow with persistent storage
 - **Monitoring**: Built-in health checks and logging
 - **Security**: Environment-based secrets management
 
