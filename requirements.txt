@@ -1,7 +1,10 @@
 fastapi==0.104.1
 uvicorn==0.24.0
 python-dotenv==1.0.0
+streamlit>=1.35.0
+astrapy>=1.0.0
 requests==2.31.0
+pandas>=2.0.0
 aiohttp==3.9.1
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4

@@ -9,6 +9,7 @@ import Navigation from './components/Navigation';
 // Import pages
 import Dashboard from './pages/Dashboard';
 import Companies from './pages/Companies';
+import CompanyResearch from './pages/CompanyResearch';
 import Scheduler from './pages/Scheduler';
 import Settings from './pages/Settings';
 import ModelTweaking from './pages/ModelTweaking';
@@ -39,6 +40,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/companies" element={<Companies />} />
+              <Route path="/company-research" element={<CompanyResearch />} />
               <Route path="/scheduler" element={<Scheduler />} />
               <Route path="/model-tweaking" element={<ModelTweaking />} />
               <Route path="/settings" element={<Settings />} />

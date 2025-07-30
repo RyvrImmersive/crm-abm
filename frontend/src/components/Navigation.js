@@ -16,6 +16,9 @@ const Navigation = () => {
           <Button color="inherit" component={RouterLink} to="/companies">
             Companies
           </Button>
+          <Button color="inherit" component={RouterLink} to="/company-research">
+            Company Research
+          </Button>
           <Button color="inherit" component={RouterLink} to="/scheduler">
             Scheduler
           </Button>

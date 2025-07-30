@@ -47,32 +47,132 @@ Alternatively, you can run the entire application with Docker:
 ### Scheduler Endpoints
 - `/api/scheduler/status`: Get scheduler status
 - `/api/scheduler/start`: Start the scheduler
-- `/api/scheduler/stop`: Stop the scheduler
-- `/api/scheduler/add-task`: Add a task
-- `/api/scheduler/remove-task/{task_id}`: Remove a task
 
-## Deployment to Render
+### Prerequisites
+- Python 3.9+
+- Node.js 16+
+- AstraDB account
+- API keys: Exa, Tavily, Langflow
 
-This application is configured to be deployed to Render using the `render.yaml` file in the root directory of the project.
+### 1. Environment Setup
+```bash
+# Clone and setup environment
+cp .env.example .env
+# Edit .env with your API keys
+```
 
-### Steps to Deploy
+### 2. Backend Launch
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
 
-1. Push your code to a GitHub repository
-2. Create a new Render account or log in to your existing account
-3. Create a new Blueprint instance and connect it to your GitHub repository
-4. Render will automatically detect the `render.yaml` file and create the necessary services:
-   - `clay-hubspot-api`: The backend API service
-   - `clay-hubspot-frontend`: The frontend React application
-5. Set up the required environment variables in the Render dashboard
+### 3. Frontend Launch
+```bash
+cd frontend
+npm install
+npm start
+```
 
-### Environment Variables
+### 4. Access Application
+- **Frontend**: http://localhost:3000
+- **API Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/api/health
 
-Make sure to set the following environment variables in the Render dashboard:
+## 🔧 Configuration
 
-#### Backend
-- `HUBSPOT_API_KEY`: Your HubSpot API key
-- `CLAY_API_KEY`: Your Clay API key
-- `FRONTEND_URL`: The URL of your frontend (e.g., `https://clay-hubspot-frontend.onrender.com`)
+### Required Environment Variables
+```env
+# Database
+ASTRA_DB_TOKEN=your_astra_token
+ASTRA_DB_ENDPOINT=your_astra_endpoint
 
-#### Frontend
-- `REACT_APP_API_URL`: The URL of your backend API (e.g., `https://clay-hubspot-api.onrender.com/api`)
+# AI APIs
+EXA_API_KEY=your_exa_key
+TAVILY_API_KEY=your_tavily_key
+LANGFLOW_API_KEY=your_langflow_key
+LANGFLOW_FLOW_URL=your_langflow_url
+
+# Optional
+DATA_FRESHNESS_DAYS=360
+```
+
+## 📖 Usage Examples
+
+### Research a Company
+1. Enter company name (e.g., "Tesla")
+2. Enter domain (e.g., "tesla.com")
+3. Click "Research Company"
+4. View comprehensive business intelligence
+
+### Find Similar Companies
+1. Research a company first
+2. Click "Find Similar Companies"
+3. View lookalike companies with:
+   - Similarity scores
+   - Financial data (revenue, market cap)
+   - Industry classification
+   - Direct website links
+
+## 🚢 Deployment
+
+### Docker Deployment
+```bash
+docker-compose up -d
+```
+
+### Cloud Deployment
+- **Backend**: Deploy to Render/Railway using `render.yaml`
+- **Frontend**: Deploy to Netlify using `netlify.toml`
+- **Environment**: Set all required environment variables
+
+See [DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md) for detailed instructions.
+
+## 🏗️ Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   React Frontend │────│  FastAPI Backend │────│    AstraDB      │
+│   (Port 3000)    │    │   (Port 8000)    │    │   (Vector DB)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │
+                                ├── Langflow API
+                                ├── Exa Search API
+                                └── Tavily Research API
+```
+
+## 🧪 Testing
+
+### API Testing
+```bash
+# Health check
+curl http://localhost:8000/api/health
+
+# Research company
+curl -X POST "http://localhost:8000/api/research" \
+  -H "Content-Type: application/json" \
+  -d '{"company_name": "Tesla", "domain_name": "tesla.com"}'
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open Pull Request
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Documentation**: Check `/docs` endpoint when running
+- **Issues**: Create GitHub issues for bugs/features
+- **API Keys**: Ensure all required environment variables are set
+
+---
+
+**Built with ❤️ for comprehensive company intelligence and business research.**

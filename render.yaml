@@ -1,22 +1,26 @@
 services:
   # Backend API Service
   - type: web
-    name: clay-hubspot-api
+    name: company-research-api
     env: docker
     region: ohio  # Choose a region close to your users
     plan: starter  # Choose an appropriate plan
     branch: main
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./backend/Dockerfile
     numInstances: 1
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     envVars:
-      - key: HUBSPOT_API_KEY
-        sync: false  # This means it's not synced from local environment
-      - key: ASTRA_DB_ID
-        sync: false
-      - key: ASTRA_DB_REGION
-        sync: false
       - key: ASTRA_DB_TOKEN
+        sync: false
+      - key: ASTRA_DB_ENDPOINT
+        sync: false
+      - key: LANGFLOW_API_KEY
+        sync: false
+      - key: LANGFLOW_FLOW_URL
+        sync: false
+      - key: EXA_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
         sync: false
       - key: LOG_LEVEL
         value: INFO

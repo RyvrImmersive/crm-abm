@@ -11,7 +11,7 @@ import {
   Button,
   CircularProgress
 } from '@mui/material';
-import { clayApi, schedulerApi } from '../services/api';
+// Using direct fetch for API calls instead of non-existent services
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -27,18 +27,26 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        // Get scheduler status
-        const schedulerResponse = await schedulerApi.getStatus();
+        // Use our new company research API health check
+        const response = await fetch('http://localhost:8000/api/health');
+        const data = await response.json();
         
-        // Update stats
+        // Update stats with available data
         setStats({
-          schedulerStatus: schedulerResponse.data.status,
-          lastUpdate: schedulerResponse.data.last_run,
-          companiesProcessed: schedulerResponse.data.processed_count || 0,
-          successRate: schedulerResponse.data.success_rate || 0
+          schedulerStatus: data.success ? 'healthy' : 'error',
+          lastUpdate: new Date().toISOString(),
+          companiesProcessed: data.data?.companies_in_db === 'Available' ? 'Available' : 0,
+          successRate: data.success ? 100 : 0
         });
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        // Set fallback data
+        setStats({
+          schedulerStatus: 'error',
+          lastUpdate: null,
+          companiesProcessed: 0,
+          successRate: 0
+        });
       } finally {
         setLoading(false);
       }
@@ -50,33 +58,14 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle scheduler start/stop
+  // Handle scheduler start/stop (disabled - no scheduler API available)
   const handleSchedulerToggle = async () => {
-    try {
-      if (stats.schedulerStatus === 'running') {
-        await schedulerApi.stop();
-        setStats({ ...stats, schedulerStatus: 'stopped' });
-      } else {
-        await schedulerApi.start();
-        setStats({ ...stats, schedulerStatus: 'running' });
-      }
-    } catch (error) {
-      console.error('Error toggling scheduler:', error);
-    }
+    alert('Scheduler controls not available in this version');
   };
 
-  // Process a test company
+  // Process a test company (redirect to Company Research)
   const handleProcessTestCompany = async () => {
-    try {
-      setLoading(true);
-      await clayApi.processCompany('example.com');
-      alert('Test company processing initiated!');
-    } catch (error) {
-      console.error('Error processing test company:', error);
-      alert('Error processing test company. See console for details.');
-    } finally {
-      setLoading(false);
-    }
+    alert('Use the Company Research tab to research companies!');
   };
 
   return (
@@ -106,7 +95,7 @@ const Dashboard = () => {
                   Scheduler Status
                 </Typography>
                 <Typography component="p" variant="h4">
-                  {stats.schedulerStatus.toUpperCase()}
+                  {stats.schedulerStatus ? String(stats.schedulerStatus).toUpperCase() : 'UNKNOWN'}
                 </Typography>
                 <Box sx={{ mt: 2 }}>
                   <Button 
@@ -195,7 +184,7 @@ const Dashboard = () => {
                     <Grid item>
                       <Button 
                         variant="contained" 
-                        onClick={() => clayApi.createHubspotProperties()}
+                        onClick={() => alert('HubSpot integration not available in this version')}
                         disabled={loading}
                       >
                         Create HubSpot Properties
