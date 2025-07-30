@@ -1,10 +1,10 @@
 services:
-  # Backend API Service
+  # Company Intelligence API Backend
   - type: web
-    name: company-research-api
+    name: company-intelligence-api
     env: docker
-    region: ohio  # Choose a region close to your users
-    plan: starter  # Choose an appropriate plan
+    region: ohio
+    plan: starter
     branch: main
     dockerfilePath: ./backend/Dockerfile
     numInstances: 1
@@ -22,16 +22,18 @@ services:
         sync: false
       - key: TAVILY_API_KEY
         sync: false
+      - key: DATA_FRESHNESS_DAYS
+        value: "360"
       - key: LOG_LEVEL
         value: INFO
-      - key: CLAY_API_KEY
-        sync: false
+      - key: NODE_ENV
+        value: production
       - key: FRONTEND_URL
-        value: https://clay-hubspot-frontend.onrender.com
+        value: https://company-intelligence-frontend.onrender.com
 
-  # Frontend Service
+  # Company Intelligence Frontend
   - type: web
-    name: clay-hubspot-frontend
+    name: company-intelligence-frontend
     env: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/build
@@ -42,4 +44,6 @@ services:
         destination: /index.html
     envVars:
       - key: REACT_APP_API_URL
-        value: https://clay-hubspot-api.onrender.com/api
+        value: https://company-intelligence-api.onrender.com/api
+      - key: NODE_ENV
+        value: production
