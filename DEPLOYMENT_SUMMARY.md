@@ -1,4 +1,28 @@
-# 🚀 Professional Company Research Platform - Deployment Ready!
+# 🚀 Professional Company Research Platform - LIVE & DEPLOYED!
+
+## 🎉 **DEPLOYMENT STATUS: SUCCESS** ✅
+
+**Deployed on**: July 30, 2025  
+**Platform**: Render  
+**Status**: All services operational
+
+### **🔗 Live Application URLs:**
+
+#### **Backend APIs (Production Ready):**
+- **Company Intelligence API**: https://company-intelligence-api.onrender.com
+  - Health Check: `/api/health`
+  - API Documentation: `/docs`
+  - Company Research: `/api/research`
+
+- **Company Research API**: https://company-research-api.onrender.com
+  - Health Check: `/api/health`
+  - API Documentation: `/docs`
+
+#### **Frontend Applications:**
+- **Company Intelligence Platform**: https://company-intelligence-frontend.onrender.com
+- **Clay HubSpot Integration**: https://clay-hubspot-frontend.onrender.com
+
+---
 
 ## ✅ **What We've Built**
 
@@ -90,6 +114,80 @@ docker build -t company-research-frontend .
 docker run -p 3000:3000 company-research-frontend
 ```
 
+## 🔧 **Troubleshooting Guide**
+
+### **Common Deployment Issues & Solutions**
+
+#### **❌ Issue: "Could not import module 'main'"**
+**Solution**: Docker build context issue
+```bash
+# Fix: Ensure Dockerfile copies from correct directory
+# In backend/Dockerfile:
+COPY backend/requirements.txt .
+COPY services/ ./services/
+COPY backend/ .
+```
+
+#### **❌ Issue: "ModuleNotFoundError: No module named 'services'"**
+**Solution**: Services directory not copied to Docker container
+```bash
+# Fix: Add services directory to Dockerfile
+COPY services/ ./services/
+```
+
+#### **❌ Issue: "Missing required environment variables"**
+**Solution**: Environment variables not set in Render
+```bash
+# Required variables (exact names):
+ASTRA_DB_TOKEN=your_token
+ASTRA_DB_ENDPOINT=your_endpoint
+LANGFLOW_API_KEY=your_key
+LANGFLOW_FLOW_URL=your_url  # NOT LANGLFOW_API_URL!
+```
+
+#### **❌ Issue: Service fails to start**
+**Solution**: Check environment variable spelling
+- Common typo: `LANGLFOW_API_URL` → `LANGFLOW_FLOW_URL`
+- Verify all 4 required variables are set
+- Check Render logs for specific error messages
+
+### **Environment Variable Validation**
+
+Test your environment variables locally:
+```bash
+# Test backend startup
+cd backend
+ASTRA_DB_TOKEN="your_token" \
+ASTRA_DB_ENDPOINT="your_endpoint" \
+LANGFLOW_API_KEY="your_key" \
+LANGFLOW_FLOW_URL="your_url" \
+python -c "import main; print('✅ Backend imports successfully')"
+```
+
+### **Service Health Checks**
+
+#### **Backend Health Check:**
+```bash
+curl https://company-intelligence-api.onrender.com/api/health
+# Expected: {"success": true, "data": {"status": "healthy"}}
+```
+
+#### **Frontend Health Check:**
+```bash
+curl https://company-intelligence-frontend.onrender.com
+# Expected: HTML response with React app
+```
+
+### **Render-Specific Tips**
+
+1. **Blueprint Deployment**: Use `render.yaml` for consistent deployments
+2. **Environment Variables**: Set in Render dashboard, not in code
+3. **Docker Context**: Ensure correct `dockerfilePath` in render.yaml
+4. **Service Dependencies**: Frontend should reference backend URLs
+5. **Logs**: Monitor Render logs for real-time debugging
+
+---
+
 ## 🧪 **Testing & Validation**
 
 ### **API Testing**
@@ -158,11 +256,17 @@ python test_api.py
 
 ## 🚀 **Next Steps**
 
-### **Immediate Actions**
-1. **Test Locally**: Verify both backend and frontend are working
-2. **Set Environment Variables**: Configure all required API keys
-3. **Deploy to Staging**: Use Render for initial deployment
-4. **Validate Production**: Run full test suite on deployed app
+### **✅ Completed Actions**
+1. **✅ Local Testing**: Backend and frontend verified working
+2. **✅ Environment Variables**: All API keys configured and tested
+3. **✅ Production Deployment**: Successfully deployed to Render
+4. **✅ Production Validation**: All services operational and healthy
+
+### **Immediate Post-Deployment Actions**
+1. **Monitor Performance**: Watch Render logs for any issues
+2. **Test Live APIs**: Verify all endpoints respond correctly
+3. **User Acceptance Testing**: Test full user workflows
+4. **Documentation**: Update any remaining docs with live URLs
 
 ### **Future Enhancements**
 - **Authentication**: Add user login and session management
